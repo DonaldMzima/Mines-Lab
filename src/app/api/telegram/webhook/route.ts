@@ -2,9 +2,6 @@ import { getTelegramConfig, secretsMatch } from "@/lib/telegram/api";
 import { handleTelegramUpdate } from "@/lib/telegram/bot";
 import type { TelegramUpdate } from "@/lib/telegram/types";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 function isUpdate(value: unknown): value is TelegramUpdate {
   if (typeof value !== "object" || value === null) return false;
   const update = value as Record<string, unknown>;
