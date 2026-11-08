@@ -56,7 +56,7 @@ function statusText(chatId: number): string {
   return [
     "Mines Lab status",
     "Telegram bot: online",
-    "Mines Lab integration: available",
+    "Browser game detection: unavailable to the server-side bot",
     "1win live connection: unavailable",
     "Data source: unavailable",
     "Bot storage: separate from browser history",

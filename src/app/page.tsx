@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useAppState } from "@/components/app-provider";
 import { InlineSignals } from "@/components/inline-signals";
+import { useBrowserGamePresence } from "@/components/use-browser-game-presence";
 import { getGameConnectionStatus } from "@/lib/game-connection-status";
 import { SUPPORTED_BOMB_COUNTS, tileIndexToNumber, TOTAL_TILES } from "@/lib/mines";
 
@@ -12,6 +13,7 @@ export default function Home() {
     preferences, updatePreferences, connection, connectGame, demoConnection, connectDemo, disconnectDemo,
     startDemo, pauseDemo, resetDemo, tracking, history,
   } = useAppState();
+  const browserGame = useBrowserGamePresence();
   const liveStatus = getGameConnectionStatus(connection);
   const demoActive = demoConnection.status !== "disconnected";
   const round = tracking.currentRound;
@@ -47,9 +49,19 @@ export default function Home() {
         <section className="simple-section" aria-label="Connection controls">
           <div className="simple-actions">
             {!demoActive ? <button type="button" className="primary-button" onClick={connectDemo}>Connect Demo</button> : <button type="button" className="secondary-button" onClick={disconnectDemo}>Disconnect Demo</button>}
-            <button type="button" className="secondary-button" disabled={!connection.available || liveStatus === "connecting" || liveStatus === "connected"} onClick={() => { void connectGame(); }}>Connect Live</button>
+            {browserGame.status !== "game-detected"
+              ? <button type="button" className="secondary-button" disabled={browserGame.status === "checking"} onClick={() => { void browserGame.check(); }}>Connect Game</button>
+              : <button type="button" className="secondary-button" onClick={browserGame.disconnect}>Disconnect Game</button>}
           </div>
-          {!connection.available && <p className="simple-help">Live connection isn’t available yet.</p>}
+          {browserGame.status === "idle" && <p className="simple-help">Connect Game checks for the optional Chrome companion. It does not connect a live round-data feed.</p>}
+          {browserGame.status === "checking" && <p className="simple-help">Checking the Chrome companion…</p>}
+          {browserGame.status === "extension-unavailable" && <p className="simple-error" role="alert">Chrome companion not installed or this Mines Lab origin is not allowed.</p>}
+          {browserGame.status === "permission-required" && <p className="simple-help">Permission required. Open the Mines Lab Companion extension and grant access to 1win tabs.</p>}
+          {browserGame.status === "game-not-found" && <p className="simple-help">No supported 1win Mines page was detected.</p>}
+          {browserGame.status === "game-detected" && <p className="simple-help">Game detected. No authentic round-data feed is connected.</p>}
+          {browserGame.status === "disconnected" && <p className="simple-help">Game detection disconnected.</p>}
+          {browserGame.status === "error" && <p className="simple-error" role="alert">The Chrome companion could not check for a game tab.</p>}
+          {!connection.available && <p className="simple-help">Authentic live round data is unavailable.</p>}
           {demoConnection.lastError && <p className="simple-error" role="alert">{demoConnection.lastError}</p>}
         </section>
 
