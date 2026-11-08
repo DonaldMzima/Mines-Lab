@@ -1,107 +1,150 @@
 # Mines Lab
 
-A local game-analysis dashboard for 1win Mines. It calculates survival probabilities under a uniform-placement assumption, generates explicitly experimental random suggestions, and evaluates them against imported or manually entered completed-round results. Imports automatically evaluate a signal when its original round identifier matches. No live provider connection, independently verified source, or predictive advantage is claimed.
+Mines Lab is a local, evidence-first analysis workspace for selected 1win-style games. It currently provides Mines analysis, Penalty probability analysis, an optional Chrome game-presence companion, and an optional Telegram interface.
 
-First-time visitors see a six-step welcome tutorial. It configures the existing game preferences, explains imports/live availability, and ends with Dashboard or Signals navigation. Progress is stored separately under `mines-lab:onboarding:v1`; unfinished tutorials resume, while completed or dismissed tutorials stay closed. Reopen from **Help & Tutorial** in the sidebar or Settings. **Connection Setup Guide** is available in the provider panel and Settings. See [onboarding behavior and manual verification](./docs/ONBOARDING.md).
+It is not a gambling automation tool. It does not place bets, select tiles or shots, cash out, or claim knowledge of future outcomes.
 
-## Workspaces
+## Important status
 
-- `/` — Interactive analysis board and calculated survival probabilities.
-- `/signals` — Generate a random suggestion, optionally record its round ID before the outcome, and compare results with the random baseline and descriptive uncertainty intervals.
-- `/history` — Import completed-round JSON, review per-record errors, automatically evaluate matching round IDs, or explicitly confirm a later association. Clearing either history requires confirmation.
-- `/settings` — Persist preferences, inspect per-category storage warnings, download originals, recover corrupt categories after backup, and export validated records.
+There is **no verified authorized 1win read-only game-data API, WebSocket feed, or provider adapter configured in this repository**.
 
-Signal suggestions are experimental and do not identify mathematically safer tiles. The read-only [adapter interface and subscription helper](./src/lib/game-data-adapter.ts) validate and deduplicate supplied events, report errors, and clean up subscriptions. A [round lifecycle engine](./src/lib/round-tracker.ts) is wired into the shared import/history/evaluation path. No endpoint or network transport is configured. See the [data-access investigation](./docs/REAL_DATA_INVESTIGATION.md), [lifecycle integration contract](./docs/ROUND_TRACKING.md), and [implementation report and verification steps](./docs/IMPLEMENTATION_REPORT.md).
+- Browser **Game detected** means only that the optional Chrome companion found an approved Mines marker in a permitted tab.
+- A detected tab is not an active round, completed outcome, or live data feed.
+- Mines suggestions are a **uniform random baseline**, not safe-tile predictions.
+- Penalty calculations are theoretical rule calculations, not goalkeeper-direction forecasts.
+- Imported data is user-provided unless a future authorized server-side source verifies provenance.
+
+## Implemented games
+
+| Game | Available functionality | Live provider data | Prediction claim |
+| --- | --- | --- | --- |
+| Mines | 5×5 probability analysis, demo simulation, validated local/imported results, history, experimental suggestions | Unavailable | No verified predictive advantage |
+| Penalty | Turbo/Series score probabilities, cumulative Series probability, displayed multiplier diagnostics | Unavailable | No direction or outcome prediction |
+| Blackjack, Hilo, Dice, Plinko, Keno, Towers, Coinflip, Poker, Lucky Jet, Rocket Queen, Rocket X, Aviator, Speed & Cash | Catalog entries only | Unavailable | None |
+
+The game selector intentionally marks unimplemented games as **Planned** and shows no fake connection or prediction controls.
+
+## Mines
+
+For a 25-tile board, supported mine counts are 2, 3, 5, and 7. The survival chance for `k` suggested picks with `m` mines is:
+
+`∏(25 - m - i) / (25 - i)` for `i = 0` through `k - 1`.
+
+The signal generator shuffles tile positions uniformly and labels every recommendation **Experimental**. It does not use round history, completed mines, account data, or hidden game state.
+
+Canonical completed Mines results require a completed round ID, timestamp, supported mine count, matching unique mine positions from 0–24, and a result status. The display maps internal positions 0–24 to tiles 01–25. Duplicate results are skipped; conflicts do not overwrite saved history.
+
+Observed Mines payload helpers understand captured request/result shapes, but do not create a network connection and do not treat `ms_id` or a raw state code as a canonical round ID or terminal result by itself.
+
+See [round tracking](./docs/ROUND_TRACKING.md) and [the live-data investigation](./docs/REAL_DATA_INVESTIGATION.md).
+
+## Penalty
+
+Penalty uses game ID `v_1wingames:penalty` and observed integration key `vgsonewin2_penalty`.
+
+### Supplied in-game rules
+
+- Published RTP: 94%
+- Turbo theoretical score chance: 53.33%
+- Series conditional score chances: 53.33%, 53.33%, 46.67%, 46.67%, 33.33%
+- Displayed Series multipliers: 1.81×, 3.41×, 7.30×, 15.65×, 46.97×
+
+The Series workspace multiplies the documented conditional score chances to show the chance of reaching each step. It also shows `reach probability × displayed multiplier` as a **diagnostic product only**. It is not a verified expected return because complete payout and cash-out rules are not documented.
+
+### Observed data boundary
+
+The Penalty observation parser validates these captured shapes:
+
+- Shot request: `id`, `row`, `col`, `bet_amount`
+- Response: `ms_id`, `state`, `outcome.catches`, `cashout`, `fair`
+- `isDemo: true` is recognized as Demo; `false` remains unknown.
+- Observed `state: 2` is labeled in-progress only.
+
+The parser does **not** infer a goal layout, shooting direction, goalkeeper position, completed outcome, or real-money mode. `outcome.catches` is opaque because its meaning and timing are not verified. `ms_id` is never used as a round ID. See [Penalty integration blockers](./docs/PENALTY_INTEGRATION_BLOCKERS.md).
+
+## Chrome companion
+
+The unpacked Manifest V3 companion lives in [`chrome-extension`](./chrome-extension). It can return only:
+
+- Extension unavailable
+- Permission required
+- Game not found
+- Game detected
+- Disconnected
+- Error
+
+It does not read passwords, cookies, localStorage, session tokens, network traffic, WebSocket messages, account balances, or game outcomes. It does not automate any action.
+
+See [Chrome companion setup](./docs/CHROME_COMPANION.md).
+
+## Telegram bot
+
+The bot is configured only with server-side environment variables. Commands include:
+
+- `/start`, `/help`, `/status`
+- `/signal` — experimental random Mines suggestions
+- `/penalty` — Turbo/Series Penalty probability analysis
+- `/result` and `/round` — latest server-known completed Mines result
+- `/history` — server-known Mines results
+- `/notifications` — opt in/out of future server-side completed-round notifications
+
+The bot has no direct access to browser localStorage or the Chrome companion. Its current store is process-local; durable shared storage is required for reliable production history, settings, deduplication, and notifications across serverless instances.
+
+Required deployment variables:
+
+```dotenv
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_WEBHOOK_SECRET=
+APP_BASE_URL=https://your-public-https-domain.example
+```
+
+Keep real values in a deployment secret manager, never in client code, localStorage, or `.env.example`. Rotate a token or secret if it has been exposed.
+
+## Local storage and provenance
+
+The web workspace stores browser-local history, signals, evaluations, and preferences. Records are validated independently; corrupt categories are preserved until recovered in Settings.
+
+- **Demo**: local simulation only.
+- **Import/manual**: user-provided data, structurally validated but not provider-verified.
+- **Provider/live**: reserved for a future documented, authorized adapter.
+
+Do not mix Demo and Real records or present simulations as provider data.
 
 ## Run locally
 
-Use the repository's Yarn package manager:
+This repository uses Yarn.
 
 ```bash
 yarn dev
 ```
 
-## Round import format
+Open `http://localhost:3000`.
 
-Import one round object or an array as a `.json` file, at most 2 MiB and 5,000 records per import. Mine and selected positions are zero-based, from `0` to `24`. Each canonical record declares a completed round and includes an ID, game ID `v_1wingames:mines`, completion timestamp (use ISO 8601 with a timezone), supported bomb count (`2`, `3`, `5`, or `7`), exactly that many unique mine positions, and a result (`won`, `lost`, `cashed_out`, or `unknown`). Explicit incomplete flags are rejected. Valid batch rows can be saved even when other rows fail; every failure is reported.
+To use the Chrome companion during development, load [`chrome-extension`](./chrome-extension) as an unpacked extension, grant its optional 1win tab permission in the extension popup, then select **Connect Game** in Mines Lab.
 
-```json
-{
-  "id": "round-001",
-  "gameId": "v_1wingames:mines",
-  "timestamp": "2026-01-15T12:00:00.000Z",
-  "bombCount": 3,
-  "minePositions": [0, 12, 24],
-  "selectedPositions": [4, 8],
-  "result": "cashed_out",
-  "cashoutAmount": 0.65,
-  "currency": "USD",
-  "fairness": {
-    "serverSeedHash": "public-hash",
-    "algorithm": "provider-algorithm-id"
-  }
-}
-```
+## Manual verification checklist
 
-Observed provider responses need an explicit envelope because the supplied examples do not establish a stable round ID, exhaustive state mapping, or completion timestamp:
+1. Select **Mines**, start a local Demo round, and confirm it is labeled Demo.
+2. Generate a Mines signal and confirm suggestions are labeled experimental, not safe or predictive.
+3. Select **Penalty**, switch Turbo/Series, and compare probabilities and multipliers with the supplied game evidence.
+4. Confirm Penalty does not show a live connection, directions, completed outcomes, or an expected-return claim.
+5. Reload the unpacked Chrome extension; test no tab, non-Mines tab, detected Mines marker, and a closed/navigated tab.
+6. After deployment, use `/start`, `/penalty`, `/signal`, and `/notifications` in Telegram. Confirm a response does not imply a 1win data connection.
+7. Run build and type checks before deployment. No runtime success should be inferred from static inspection alone.
 
-```json
-{
-  "roundId": "round-002",
-  "timestamp": "2026-01-15T12:01:00.000Z",
-  "completed": true,
-  "result": "lost",
-  "response": {
-    "ms_id": "message-002",
-    "state": 0,
-    "outcome": { "mines": [0, 12, 13] },
-    "fair": {
-      "seedId": "example-seed-id",
-      "serverSeedHash": "public-hash",
-      "clientSeed": "example-client-seed",
-      "nonce": 1,
-      "cursor": 0,
-      "bytesUsed": 12,
-      "algo": "hmac_sha256:1"
-    }
-  }
-}
-```
+## Security and development rules
 
-The envelope is a user assertion, not provider verification. Supply the actual round ID and completion/result context; do not substitute `ms_id`. For a cash-out result supply `result: "cashed_out"` and optionally `response.cashout_amount`. Raw state codes (safe integers or non-empty text codes) are preserved independently of the explicit result; no code establishes success or completion. Optional mine counts must agree with the revealed positions. An optional `mode` is `demo`, `real`, or `unknown`; no mode is inferred from balances. Amounts without both reported real mode and currency are never labeled real money. Fairness fields are preserved; account balances and unknown fields are not stored. Never import passwords, cookies, tokens, or account exports containing credentials.
+- Never automate betting, tile selection, shots, or cash-outs.
+- Never collect cookies, passwords, session tokens, or account credentials.
+- Never replay observed gameplay requests or use undocumented endpoints as a data feed.
+- Do not label random output as prediction or imported data as provider-verified without evidence.
+- Add a provider connector only after authorization, documented authentication, event schemas, round IDs, state meanings, rate limits, and retention permission are established.
 
-Identical duplicates are skipped; conflicting IDs are rejected without overwriting saved records. If conflicting versions appear in one batch, all versions of that ID are excluded. Imported data conflicting with an earlier round-linked evaluation is also rejected. Browser history holds 500 rounds and 1,000 signals; additional records are reported or blocked at the limit, rather than silently evicting records. Export before clearing. Signal exports are an archive; signal/evaluation restoration is not implemented.
+## Further documentation
 
-## Signal association and storage
-
-Record an exact round ID while generating a signal if legitimately known before its result. When an import has that ID, matching game/mine count, and a completion timestamp after generation, evaluation happens automatically. No association is inferred from timing alone. Without a precommitted ID, select an imported round and explicitly confirm its identity; it is labeled a later association. Manual mine entry remains available. Each signal and each identified round can be evaluated once; suggestions, generation time, and previous evaluations are preserved.
-
-These local records are editable browser data, not proof of a prospective experiment. Observed rates exclude pending signals. The random baseline averages the individual probabilities of the evaluated signals. Wilson 95% intervals are shown within each mine/pick configuration and assume independent rounds; selective reporting and unverified inputs limit interpretation.
-
-Storage categories load, validate, and save independently using existing version-1 envelopes. Valid rows survive invalid neighbors. Corrupt originals remain untouched and saving that category is paused until Settings → Back up and recover. Recovery verifies a separate local backup before writing recovered data. If quota or browser permissions prevent backup, recovery stops with the original preserved. Download original data first if needed. Evaluations pause when signal/evaluation storage requires recovery so quarantined historical records cannot be silently replaced. Other categories continue operating. Connection preferences contain only auto-connect (off by default) and a local freshness threshold; older settings gain these defaults. Use one tab for writes; cross-tab merging and device synchronization are not implemented.
-
-Fairness verification, authorized live data connections, provider multipliers, and predictive models remain unimplemented. No authorized round-history endpoint or feed was established in public official documentation; see the investigation for sources and scope.
-
-## Connection availability and round lifecycle
-
-The default [provider configuration](./src/lib/provider-config.ts) includes only `1win`, `v_1wingames:mines`, and `vgsonewin2_mines`. Transport, endpoints, authentication, supported modes, and event capabilities remain absent until documented. Analysis and Settings show the actual unavailable/disconnected state, missing requirements, observed round ID/status, latest completed result, provider receipt/event timestamps, errors, and reported mode. Connect and auto-connect controls are disabled while unavailable.
-
-An authorized adapter can later be instantiated within a Client Component and supplied together with matching documented configuration to `AppProvider`. Configuration alone does not create a connection or grant authorization. Active rounds require explicit `round-start` events. Updates without a start remain pending/unknown; completed-only sources do not fabricate starts. The tracker guards identifiers, duplicates, ordering, known selections, and terminal immutability. Completed results enter the existing history/evaluation pipeline; received outcomes can still evaluate associated signals when the 500-round storage limit prevents a new history row.
-
-The connection hook subscribes once per session, cleans up on disconnect/unmount/configuration changes, and checks local freshness without network polling. Retry controls are manual; provider-specific reconnection/rate rules require documentation. Repeated old events do not refresh their event timestamp. A fresh observed active round with the matching mine count can supply the next signal's ID automatically; completed, stale, disconnected, or unknown rounds cannot.
-
-The setup guide's **Test Connection** uses the same authorized adapter and runtime-validated read-only history request, reusing pending work rather than opening duplicate subscriptions. It is disabled for the current unavailable source and for sources without a supported history check. Transport success, validated history access, completed-history counts, and actual lifecycle-event observations are reported separately. An empty valid history response checks access only; it does not verify live round synchronization. Checks have a 15-second application wait limit and cancellation guards. No test has been run against a provider in this workspace.
-
-History disclosures display preserved fairness metadata and raw provider state. The optional verifier interface has no provider implementation registered; verification remains unavailable. Typography uses shared 13px metadata, 14px secondary/table, 15px controls, 16px body/inputs/navigation, 18px tiles/card headings, 22px section headings, and 28–32px page headings, with responsive wrapping.
-
-## Manual workflow check
-
-1. Open `/signals`, select a mine count and suggestion count, then generate a signal. Confirm distinct numbered tiles are highlighted as experimental suggestions.
-2. For automatic evaluation, generate a signal with a unique round ID before its outcome, then import that completed round with the same game/mine count and a genuine completion timestamp after generation. Confirm one evaluation appears without mine re-entry; retry the file and confirm no second evaluation appears.
-3. For manual evaluation, enter exactly the configured number of revealed mine tile numbers (1–25). Confirm safe picks, mine hits, and complete success update. Refresh to confirm persistence.
-4. Generate a signal without a round ID. Import its matching later completed round, select it in the signal's imported-round chooser, and confirm the association. Check the retrospective label and that the round cannot be assigned twice.
-5. Compare observed success, expected random baseline, pending signals, and per-configuration intervals. These are descriptive statistics, not proof of prediction.
-6. Import batches with invalid records and duplicate/conflicting IDs. Confirm valid unrelated rows survive and failures are reported. Clear actions must require confirmation.
-7. Open `/settings`, change defaults, theme, and compact-board preferences, refresh, then reset defaults. Verify each storage category reports its actual status. Recovery scenarios are detailed in the implementation report.
-
-Runtime verification status and command restrictions are recorded in the implementation report. No runtime success should be inferred from static review.
+- [Live data investigation](./docs/REAL_DATA_INVESTIGATION.md)
+- [Browser companion feasibility](./docs/BROWSER_COMPANION_FEASIBILITY.md)
+- [Chrome companion setup](./docs/CHROME_COMPANION.md)
+- [Penalty integration blockers](./docs/PENALTY_INTEGRATION_BLOCKERS.md)
+- [Telegram bot setup](./docs/TELEGRAM_BOT.md)
+- [Round tracking](./docs/ROUND_TRACKING.md)
