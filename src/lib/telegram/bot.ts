@@ -2,7 +2,7 @@ import { generateSignal } from "@/lib/signals/generator";
 import { GAME_ID, tileIndexToNumber } from "@/lib/mines";
 import type { GameRound } from "@/lib/mines";
 import { answerTelegramCallback, editTelegramMessage, sendTelegramMessage } from "@/lib/telegram/api";
-import { allowTelegramAction, claimTelegramUpdate, getTelegramUser, rememberTelegramRound, updateTelegramUser } from "@/lib/telegram/store";
+import { allowTelegramAction, claimTelegramUpdate, getTelegramUser, releaseTelegramUpdate, rememberTelegramRound, updateTelegramUser } from "@/lib/telegram/store";
 import type { TelegramUserState } from "@/lib/telegram/store";
 import type { TelegramCallbackQuery, TelegramUpdate, InlineKeyboardMarkup } from "@/lib/telegram/types";
 
@@ -107,14 +107,19 @@ async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
 
 export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void> {
   if (!claimTelegramUpdate(update.update_id)) return;
-  const chatId = update.message?.chat.id ?? update.callback_query?.message?.chat.id;
-  if (chatId !== undefined && !allowTelegramAction(chatId)) {
-    if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "Please wait a moment before trying again.");
-    else await sendTelegramMessage(chatId, "Please wait a moment before trying another command.");
-    return;
+  try {
+    const chatId = update.message?.chat.id ?? update.callback_query?.message?.chat.id;
+    if (chatId !== undefined && !allowTelegramAction(chatId)) {
+      if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "Please wait a moment before trying again.");
+      else await sendTelegramMessage(chatId, "Please wait a moment before trying another command.");
+      return;
+    }
+    if (update.message?.chat && typeof update.message.text === "string") await handleCommand(update.message.chat.id, update.message.text);
+    else if (update.callback_query) await handleCallback(update.callback_query);
+  } catch (error) {
+    releaseTelegramUpdate(update.update_id);
+    throw error;
   }
-  if (update.message?.chat && typeof update.message.text === "string") await handleCommand(update.message.chat.id, update.message.text);
-  else if (update.callback_query) await handleCallback(update.callback_query);
 }
 
 /** Call only from a future genuine server-side game-data integration, never from browser localStorage. */

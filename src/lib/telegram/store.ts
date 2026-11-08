@@ -28,6 +28,11 @@ export function claimTelegramUpdate(updateId: number): boolean {
   return true;
 }
 
+/** Releases a failed update so Telegram's documented webhook retry can process it again. */
+export function releaseTelegramUpdate(updateId: number): void {
+  processedUpdateIds.delete(updateId);
+}
+
 export function getTelegramUser(chatId: number): TelegramUserState {
   const current = userStates.get(chatId);
   if (current) return current;
