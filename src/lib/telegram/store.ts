@@ -4,6 +4,8 @@ import type { SignalResult } from "@/lib/signals/types";
 export interface TelegramUserState {
   chatId: number;
   mineCount: 2 | 3 | 5 | 7;
+  /** Independent from mineCount: how many experimental tiles to show. */
+  suggestionCount: 1 | 2 | 3 | 4 | 5;
   selectedTiles: number[];
   latestSignal?: SignalResult;
   rounds: GameRound[];
@@ -36,7 +38,13 @@ export function releaseTelegramUpdate(updateId: number): void {
 export function getTelegramUser(chatId: number): TelegramUserState {
   const current = userStates.get(chatId);
   if (current) return current;
-  const next: TelegramUserState = { chatId, mineCount: 3, selectedTiles: [], rounds: [] };
+  const next: TelegramUserState = {
+    chatId,
+    mineCount: 3,
+    suggestionCount: 3,
+    selectedTiles: [],
+    rounds: [],
+  };
   userStates.set(chatId, next);
   return next;
 }

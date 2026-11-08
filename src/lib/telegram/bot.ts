@@ -7,16 +7,34 @@ import type { TelegramUserState } from "@/lib/telegram/store";
 import type { TelegramCallbackQuery, TelegramUpdate, InlineKeyboardMarkup } from "@/lib/telegram/types";
 
 const mineCounts = [2, 3, 5, 7] as const;
+const suggestionCounts = [1, 2, 3, 4, 5] as const;
 
 function controls(): InlineKeyboardMarkup {
-  return { inline_keyboard: [[
-    { text: "Mines", callback_data: "mines" },
-    { text: "Generate Signal", callback_data: "signal" },
-  ], [{ text: "Status", callback_data: "status" }, { text: "Help", callback_data: "help" }]] };
+  return {
+    inline_keyboard: [
+      [{ text: "Mine count", callback_data: "mines" }, { text: "Suggestions", callback_data: "suggestions" }],
+      [{ text: "Generate Signal", callback_data: "signal" }, { text: "Status", callback_data: "status" }],
+      [{ text: "History", callback_data: "history" }, { text: "Help", callback_data: "help" }],
+    ],
+  };
 }
 
-function mineCountControls(): InlineKeyboardMarkup {
-  return { inline_keyboard: [mineCounts.map((count) => ({ text: `${count} mines`, callback_data: `mines:${count}` }))] };
+function mineCountControls(state: TelegramUserState): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [mineCounts.map((count) => ({
+      text: `${state.mineCount === count ? "✓ " : ""}${count} mines`,
+      callback_data: `mines:${count}`,
+    }))],
+  };
+}
+
+function suggestionCountControls(state: TelegramUserState): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [suggestionCounts.map((count) => ({
+      text: `${state.suggestionCount === count ? "✓ " : ""}${count} tile${count === 1 ? "" : "s"}`,
+      callback_data: `suggestions:${count}`,
+    }))],
+  };
 }
 
 function board(state: TelegramUserState): InlineKeyboardMarkup {
@@ -42,6 +60,7 @@ function statusText(chatId: number): string {
     "Data source: unavailable",
     "Bot storage: separate from browser history",
     `Mine count: ${state.mineCount}`,
+    `Suggestion count: ${state.suggestionCount}`,
     `Last completed result: ${last ? `${last.id} · ${last.minePositions.length} mines` : "none received"}`,
   ].join("\n");
 }
@@ -54,19 +73,23 @@ function historyText(chatId: number): string {
 
 async function sendSignal(chatId: number): Promise<void> {
   const state = getTelegramUser(chatId);
-  const signal = generateSignal({ gameId: GAME_ID, mineCount: state.mineCount, suggestedTileCount: Math.min(3, 25 - state.mineCount) });
+  const signal = generateSignal({
+    gameId: GAME_ID,
+    mineCount: state.mineCount,
+    suggestedTileCount: state.suggestionCount,
+  });
   const next = updateTelegramUser(chatId, { latestSignal: signal, selectedTiles: [] });
-  await sendTelegramMessage(chatId, `Experimental random suggestion for ${signal.mineCount} mines. Purple ✳ tiles are not verified safe and do not predict future mine positions.`, board(next));
+  await sendTelegramMessage(chatId, `Experimental random suggestion: ${signal.suggestedTiles.length} tile${signal.suggestedTiles.length === 1 ? "" : "s"} for ${signal.mineCount} mines. Purple ✳ tiles are not verified safe and do not predict future mine positions.`, board(next));
 }
 
 async function handleCommand(chatId: number, text: string): Promise<void> {
   const command = text.trim().toLowerCase().split(/\s+/)[0]?.split("@")[0];
   if (command === "/start") {
-    await sendTelegramMessage(chatId, "Welcome to Mines Lab!\n\nUse this bot to explore Mines game probabilities, generate experimental tile suggestions, and view supported game results.\n\nChoose an option below.", controls());
+    await sendTelegramMessage(chatId, "Welcome to Mines Lab!\n\nChoose the mine count and the independent number of experimental suggestions, then generate a board. Suggestions are random and not verified safe.\n\nChoose an option below.", controls());
     return;
   }
   if (command === "/help") {
-    await sendTelegramMessage(chatId, "Commands:\n/start — open controls\n/help — show this help\n/status — bot and data status\n/signal — experimental random suggestion\n/history — bot-known completed results", controls());
+    await sendTelegramMessage(chatId, "Commands:\n/start — open controls\n/help — show this help\n/status — bot and data status\n/signal — experimental random suggestion\n/history — bot-known completed results\n\nUse Mine count and Suggestions to configure the board. These settings are independent.", controls());
     return;
   }
   if (command === "/status") { await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
@@ -79,7 +102,16 @@ async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
   const chatId = callback.message?.chat.id;
   if (!chatId || !callback.data) { await answerTelegramCallback(callback.id, "This control is no longer available."); return; }
   const data = callback.data;
-  if (data === "mines") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, "Choose the number of mines for experimental suggestions.", mineCountControls()); return; }
+  if (data === "mines") {
+    await answerTelegramCallback(callback.id);
+    await sendTelegramMessage(chatId, "Choose the number of hidden mines. This does not change the suggestion count.", mineCountControls(getTelegramUser(chatId)));
+    return;
+  }
+  if (data === "suggestions") {
+    await answerTelegramCallback(callback.id);
+    await sendTelegramMessage(chatId, "Choose 1–5 experimental suggestion tiles. This does not change the mine count.", suggestionCountControls(getTelegramUser(chatId)));
+    return;
+  }
   if (data === "signal") { await answerTelegramCallback(callback.id); await sendSignal(chatId); return; }
   if (data === "status") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
   if (data === "help") { await answerTelegramCallback(callback.id); await handleCommand(chatId, "/help"); return; }
@@ -89,6 +121,13 @@ async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
     updateTelegramUser(chatId, { mineCount: Number(count[1]) as 2 | 3 | 5 | 7, selectedTiles: [] });
     await answerTelegramCallback(callback.id, `${count[1]} mines selected.`);
     await sendTelegramMessage(chatId, `Mine count set to ${count[1]}. Request a signal when ready.`, controls());
+    return;
+  }
+  const suggestionCount = /^suggestions:([1-5])$/.exec(data);
+  if (suggestionCount) {
+    updateTelegramUser(chatId, { suggestionCount: Number(suggestionCount[1]) as 1 | 2 | 3 | 4 | 5, selectedTiles: [] });
+    await answerTelegramCallback(callback.id, `${suggestionCount[1]} suggestion${suggestionCount[1] === "1" ? "" : "s"} selected.`);
+    await sendTelegramMessage(chatId, `Suggestion count set to ${suggestionCount[1]}. Mine count is unchanged. Request a signal when ready.`, controls());
     return;
   }
   const tile = /^tile:(\d{1,2})$/.exec(data);
