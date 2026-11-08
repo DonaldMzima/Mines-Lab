@@ -110,6 +110,12 @@ The web workspace stores browser-local history, signals, evaluations, and prefer
 
 Do not mix Demo and Real records or present simulations as provider data.
 
+## Python reference analysis
+
+The [`python`](./python) package is an offline, standard-library-only reference implementation for Mines combinatorics, Penalty probability/multiplier diagnostics, and prospective prediction evaluation. It is intentionally not called by Next.js, Telegram, or Vercel: no deployed Python service, authentication contract, or authorized shared outcome source exists yet.
+
+It adds independent calculations without adding a machine-learning stack or claiming a predictive model. See [the Python package guide](./python/README.md) for the future local test command.
+
 ## Run locally
 
 This repository uses Yarn.
