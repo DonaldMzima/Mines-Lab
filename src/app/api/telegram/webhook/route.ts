@@ -1,17 +1,7 @@
 import { getTelegramBotConfig, secretsMatch, TelegramApiError, TelegramConfigurationError } from "@/lib/telegram/api";
 import { handleTelegramUpdate } from "@/lib/telegram/bot";
-import type { TelegramUpdate } from "@/lib/telegram/types";
-
-function isUpdate(value: unknown): value is TelegramUpdate {
-  if (typeof value !== "object" || value === null) return false;
-  const update = value as Record<string, unknown>;
-  if (typeof update.update_id !== "number" || !Number.isSafeInteger(update.update_id) || update.update_id < 0) return false;
-  const message = update.message;
-  const callback = update.callback_query;
-  const validMessage = typeof message === "object" && message !== null && typeof (message as { message_id?: unknown }).message_id === "number" && typeof (message as { chat?: { id?: unknown } }).chat?.id === "number";
-  const validCallback = typeof callback === "object" && callback !== null && typeof (callback as { id?: unknown }).id === "string";
-  return validMessage || validCallback;
-}
+import { isTelegramUpdate, readTelegramBody } from "@/lib/telegram/validation";
+import { TelegramStoreError } from "@/lib/telegram/store";
 
 export async function POST(request: Request) {
   let stage = "configuration";
@@ -23,13 +13,16 @@ export async function POST(request: Request) {
     }
     stage = "payload-check";
     const length = Number(request.headers.get("content-length") ?? "0");
-    if (!Number.isFinite(length) || length > 1_000_000) return Response.json({ ok: false }, { status: 413 });
-    const payload: unknown = await request.json();
-    if (!isUpdate(payload)) return Response.json({ ok: false }, { status: 400 });
+    if (!Number.isFinite(length) || length > 32_768) return Response.json({ ok: false }, { status: 413 });
+    const payload: unknown = await readTelegramBody(request);
+    if (!isTelegramUpdate(payload)) return Response.json({ ok: false }, { status: 400 });
     stage = "command-handler";
     await handleTelegramUpdate(payload);
     return Response.json({ ok: true });
   } catch (error) {
+    if (stage === "payload-check" && (error instanceof SyntaxError || error instanceof TypeError)) return Response.json({ ok: false }, { status: 400 });
+    if (stage === "payload-check" && error instanceof RangeError) return Response.json({ ok: false }, { status: 413 });
+    if (error instanceof TelegramStoreError) return Response.json({ ok: false, error: "Telegram state is temporarily unavailable; retry later." }, { status: 503 });
     // Do not log secrets, request headers, chat identifiers, or message contents.
     const kind = error instanceof TelegramConfigurationError
       ? "configuration"

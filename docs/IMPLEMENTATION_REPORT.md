@@ -1,124 +1,187 @@
-# Mines Lab implementation report
+# Mines Lab V4 implementation report
 
-Updated 7 November 2026 for the live-integration, round-tracking, and typography brief. This report describes implemented code and static review. It does not certify runtime behavior.
+Date: 8 November 2026. This report describes source changes in the existing repository, not a production release.
 
-## 1. Completed features
+## Verification boundary
 
-The existing Next.js application, navigation, board, random generator, evaluation history, storage formats, and palette were preserved. No dependency, database, endpoint, account credential, betting command, or fabricated live result was added.
+The user approved local tests, builds and loopback/browser checks. `yarn lint` passed with seven warnings; the Node suite passed 41 tests; Python passed 43 tests; TypeScript type-check and production build passed. Cross-language parity passed 28 scenarios/42 metrics, the release verifier passed 34 checks, and the offline Telegram verifier passed 27 cases/412 assertions. A production-build browser smoke clicked all fifteen **Get Signal** buttons, checked persistence, exercised confirmed Blackjack/Hilo actions, and started/completed the labeled Mines demo.
 
-- Canonical completed-round records and explicit envelopes around the observed provider responses share validation, duplicate/conflict handling, and partial-batch error reporting. Response `id`/`ms_id` values are validated when supplied but never substituted for the explicit round ID. Mine positions, counts, optional amounts, fairness metadata, mode, and raw state are checked. Numeric/text state codes are retained without inferring their meanings. Explicit completion/result context is still required. Balances are validated then discarded.
-- A dedicated lifecycle manager processes genuine externally supplied round IDs through explicit starts, updates, and terminal results. It handles multiple successive IDs, known selections, optional ordering/event identity, duplicates, inconsistent metadata, and immutable terminal outcomes. Completed-only sources and imported history never fabricate starts or active states.
-- Both adapter completions and imports enter the history/evaluation pipeline. History and statistics refresh through context. Matching original signal round IDs are evaluated automatically; unmatched signals stay pending until explicit confirmation or manual evaluation. Original suggestions/timestamps and earlier evaluations are preserved. History-full warnings do not prevent evaluation of a valid received outcome.
-- A connection hook accepts a future provider-approved adapter and validated documented config. It manages subscriptions, actual states, cleanup, configuration changes, duplicate connection attempts, errors, and local freshness checks. It performs no network polling and implements no speculative retry policy. The default application has no adapter or endpoint.
-- Analysis and Settings show provider availability, actual connection state, observed round ID/status, known selections, receipt/event/import times, last completion, errors, mode, and connection blockers. Connect and auto-connect are visibly disabled while unavailable. Navigation status and Signals status use the same connection state.
-- A fresh observed active provider round with a matching mine count can automatically supply the next signal's round ID. Completed, unknown, stale, and disconnected observations cannot do so. The application never labels generated suggestions verified safe.
-- Independent category recovery remains intact. Non-sensitive connection preferences were added to settings with backward-compatible defaults: auto-connect off and a 120-second local freshness threshold. Source labels and reported mode survive local persistence; imported source claims are stripped at the external import boundary. No credentials or balances are saved.
-- History exposes fairness fields and preserved provider state in a disclosure. An optional provider-specific post-round verifier interface/registry exists; no algorithm implementation or verifier is registered, no secret seed is stored, and the UI accurately says verification unavailable.
-- Observed signal success, expected random baseline, evaluated/pending counts, and per-configuration descriptive uncertainty remain available. Analysis now includes observed success and expected baseline as measured statistics. No predictive capability is claimed.
+These are local/offline results only. The Next.js API and UI use TypeScript; the Node parity verifier calls the Python CLI separately. Direct Next.js-to-Python runtime communication is not implemented or verified. No live provider feed, real Telegram request, production Redis, production deployment, or future-outcome accuracy was verified.
 
-## 2. Files changed in this follow-up
+## All 15 games
 
-New:
+UI entries describe the implemented paths; all fifteen Get Signal buttons were smoke-tested locally. Telegram entries were verified by the offline mocked integration suite, not against Telegram's live service. Python is an offline reference engine. Real data means the supported manual/demo input path, not independently authenticated provider access. No game has validated future-outcome accuracy.
 
-- `src/lib/provider-config.ts` — documented/unconfigured configuration, known identity defaults, runtime checks, explicit blockers.
-- `src/lib/round-tracker.ts` — normalized lifecycle events, observed round state, ordering and terminal ledger.
-- `src/lib/fairness.ts` — optional documented post-round verification interface and registry.
-- `src/lib/round-display.ts` — reported-mode/currency-aware cashout labels.
-- `src/components/use-provider-connection.ts` — adapter lifecycle, actual connection status, freshness, cleanup.
-- `src/components/connection-panel.tsx` — connection availability and observed-round details.
-- `src/components/fairness-details.tsx` — metadata disclosure and verification status.
-- `docs/ROUND_TRACKING.md` — internal lifecycle contract and integration boundary.
+| Game | Python engine | UI path | Telegram path | Real data | Signal method | Validated accuracy |
+|---|---|---|---|---|---|---|
+| Mines | Implemented | Existing board + Get Signal; local smoke passed | Existing board/commands; offline integration passed | Existing local/demo/import maps; no feed | Experimental uniform random tiles; combinatorial baseline | Not established |
+| Penalty | Implemented | Modes/step/Get Signal/manual results; local smoke passed | Modes/step/probabilities/history; offline integration passed | Supplied rules + manual scored/saved records; no feed | Rounded-rule scoring/cumulative probabilities; direction unavailable | Not established |
+| Blackjack | Implemented | Known cards + supported rules/actions; local smoke passed | Per-user config and actions; offline integration passed | User-entered actual cards/results; no feed | Restricted S17/DAS basic strategy | Not an evaluated win predictor |
+| Hilo | Implemented | Current rank/distribution/ties; local smoke passed | Configured direction and probabilities; offline integration passed | User-entered ranks/distribution; no feed | Maximum configured win probability; rules confirmation required | Not established |
+| Dice | Implemented | Threshold/range/payout controls; local smoke passed | Config/probability/records; offline integration passed | User-entered integer outcomes; no feed | Exact strict threshold counts and payout EV | Not established |
+| Plinko | Implemented | Rows/bias/payout distribution; local smoke passed | Config/distribution/history; offline integration passed | User-entered bucket records; no feed | Conditional binomial distribution and payout EV | No next-bucket forecast |
+| Keno | Implemented | Pool/draw/selections/paytable; local smoke passed | Config/distribution/records; offline integration passed | User-entered completed draws; no feed | Hypergeometric hit probabilities | Not established |
+| Towers | Implemented | Friendly row controls/survival; local smoke passed | Layout/survival/records; offline integration passed | User-entered step/survival; no feed | Independent configured row products | No hazard-position forecast |
+| Coinflip | Implemented | Probability/side-payout EV; local smoke passed | Probability/side-payout EV/history; offline integration passed | User-entered sides; no feed | Configured probabilities; no chosen winning side | No next-side forecast |
+| Poker | Implemented | Five-card ranks/exact replacement analysis; local smoke passed | Five-card config/rank/history; offline integration passed | User-entered actual cards; no feed | Full high-hand ranking and exact 0–2-card draw distributions | No opponent/action forecast |
+| Lucky Jet | Implemented | Imported history/threshold statistics; local smoke passed | Imported history/statistics; offline integration passed | User-provided completed multipliers; no feed | Descriptive sample risk and historical payout scenarios | No next-crash forecast |
+| Rocket Queen | Implemented | Imported history/threshold statistics; local smoke passed | Imported history/statistics; offline integration passed | User-provided completed multipliers; no feed | Separate profile; descriptive history | No next-crash forecast |
+| Rocket X | Implemented | Imported history/threshold statistics; local smoke passed | Imported history/statistics; offline integration passed | User-provided completed multipliers; no feed | Separate profile; descriptive history | No next-crash forecast |
+| Aviator | Implemented | Imported history/threshold statistics; local smoke passed | Imported history/statistics; offline integration passed | User-provided completed multipliers; no feed | SPRIBE profile; descriptive history; no RTP-derived law | No next-crash forecast |
+| Speed & Cash | Implemented | Completed-race history/statistics; local smoke passed | Separate race history/statistics; offline integration passed | One consistent race/market's manual multipliers; no feed | Descriptive race-multiplier statistics | No winning-car/crash forecast |
 
-Modified:
+## Root causes addressed
 
-- `src/lib/mines.ts` — identifier/state validation, optional mode, preserved raw codes, shared validators.
-- `src/lib/game-data-adapter.ts` — optional lifecycle subscription, preserved terminal event ordering, connected-state requirement and bounded completed cache.
-- `src/lib/storage.ts` — connection preferences and safe persisted provenance while retaining isolated recovery.
-- `src/components/app-provider.tsx` — tracker rehydration, shared ingestion, automatic evaluations, optional adapter/config injection.
-- `src/components/data-status.tsx` — dynamic shared connection/source status.
-- `src/components/app-shell.tsx` — actual state in navigation header, accessible names on collapsed links.
-- `src/app/page.tsx` — connection details and measured signal statistics.
-- `src/app/signals/page.tsx` — optional automatic active-round identity and actual connection copy.
-- `src/app/history/page.tsx` — fairness disclosure, source/mode labels, reported financial units.
-- `src/app/settings/page.tsx` — connection panel and non-sensitive preferences, disabled unavailable controls.
-- `src/app/globals.css` — shared typography scale, responsive spacing/wrapping, functional connection/fairness styling.
-- `README.md`, `docs/REAL_DATA_INVESTIGATION.md`, `docs/IMPLEMENTATION_REPORT.md` — current formats, findings, limitations, and verification instructions.
+1. Thirteen catalog entries were marked planned and had no calculation workspace. They now have bounded game-specific mathematical engines and real input validation.
+2. Penalty exposed a long probability explanation without a primary Get Signal action. Modes and step controls now lead to a concise signal status and scoring chance. A probability is never promoted to a goalkeeper direction.
+3. Mines signal generation was hidden in Advanced. It is now directly accessible while preserving the original board, demo, completed-map and evaluation systems.
+4. The bot was primarily Mines/Penalty, with no uniform per-game state/history contract. It now selects all fifteen and preserves settings/results/history per private user and per game.
+5. Server-side Telegram state and deduplication were process-local. An optional documented Redis REST store adds shared state, atomic update claims and per-user leases; the fallback explicitly remains non-durable.
+6. Documentation contradicted the code (Penalty planned versus implemented). The current evidence/status documents are aligned.
+7. Static review found restored-state coercion, impossible-date acceptance, duplicate links, display-before-save and retrying notification toggles. These source paths were hardened. No runtime correctness is inferred from the fixes.
 
-`layout.tsx`, package files, lockfile, and dependencies were not changed in this follow-up. No commits were created.
+## Game-specific calculations
 
-## 3. API findings
+[The evidence register](GAME_RULES_V4.md) gives every rule profile and blocker; [the Python guide](../python/README.md) gives independent formulas. Core calculations are Mines combinations, Penalty conditional products, ace-aware restricted Blackjack strategy, remaining-rank Hilo, inclusive integer Dice counting, side-specific Coinflip EV, Plinko binomial buckets, Keno hypergeometric hits, Towers independent survival and five-card Poker ranking/kickers/exact replacement enumeration. Each crash/race game has a distinct profile with a shared legitimate statistical implementation: counts, mean/median/range, strict-above versus at-or-above threshold rates, uncertainty and explicitly conditional historical payout scenarios. No trained model or fabricated future-outcome generator was added.
 
-No official endpoint, authentication contract, supported subscription, round-start/update/completion schema, rate-limit specification, or independent-application permission for 1win Mines was established in the public official sources reviewed. The known identity defaults are `1win`, `v_1wingames:mines`, and the observed integration key `vgsonewin2_mines`; these are not connection credentials or authorization.
+Initial configurable models are labeled examples. A validated label means mathematics conditional on a user-confirmed configuration, with providerVerified:false. It does not mean independently verified rules or predictive accuracy.
 
-[1win Partners](https://1win-partners.com/) is an affiliate program; affiliate statistics do not establish access to a player's Mines round results. The [official casino page](https://1win.com/casino) supplies product context rather than a usable read-only integration specification. Direct page retrieval was unreadable in the research environment, so indexed information is treated with that limitation. Fresh searches did not establish another official integration contract. This does not prove that a private approved partner offering does not exist.
+## Website changes
 
-Transport, endpoints, authentication method, supported mode, and capability flags remain absent in the default config. A documented config must supply actual official references and a matching authorized adapter before the UI enables connection. Structural validation of supplied config is not itself proof of authorization.
+Branding and game navigation remain. The primary game card prioritizes selected game, Not connected status, relevant configuration, Get Signal, short output and latest completed result. Details contains mathematics, provenance, canonical manual imports, saved analysis/result history and exports. Every game has separate browser-local V4 storage; the existing Mines storage keys are untouched. Corrupt storage is preserved and saving disabled rather than silently reset; cross-tab writes are checked for conflicts. Storage is bounded to 200 analyses and 200 completed records per game.
 
-No provider login, session token/cookie reuse, private endpoint probing, CORS bypass, gameplay request, or betting action was used. See [the investigation](./REAL_DATA_INVESTIGATION.md) for source scope and exact missing requirements.
+Blackjack/Hilo do not invent missing cards. Dice/Keno/Plinko/Towers settings are configurable models, not claims about undocumented 1win variants. Penalty retains the complete supplied Series table under a collapsible section. A goal/keeper grid is withheld because its actual mapping remains unknown. Main navigation retains Settings and adds direct History, Signals and Telegram access.
 
-## 4. Live connection status
+## Telegram changes
 
-**Unavailable and disconnected. Live synchronization is not complete.**
+The existing bot identity, webhook route, setup route and secret-header checks remain. Compact main/crash/more menus cover all fifteen. Each game exposes Get Signal, Settings, Latest Result, History, Status and Details. Existing Mines controls and commands remain. Config/record JSON is validated; independent private-user state avoids leaking group settings. Notification opt-in remains explicit; Enable/Disable operations are retry-idempotent.
 
-There is no concrete HTTP/WebSocket provider connector because the actual endpoint, permission/authentication, events, identifiers, state semantics, supported modes, replay, limits, and retry requirements remain unverified. A generic WebSocket class would not resolve these requirements and was not added as a pretend connection.
+Update claims use a short processing lease and completed-update retention. Shared storage uses optional Redis command-array REST requests and token-owned lock release; configured storage failures are reported rather than silently falling back and losing state. A Telegram send and a database write cannot be committed atomically: an ambiguous send failure can still cause a repeated message on retry. No exactly-once delivery claim is made. Process-local mode does not provide multi-instance guarantees. See [Telegram setup](TELEGRAM_BOT.md).
 
-The smallest external milestone is written provider approval plus official read-only documentation and sanitized lifecycle/completion fixtures. The existing adapter boundary can then be implemented without replacing the history/evaluation pipeline.
+## Python integration choice
 
-## 5. Round tracking
+Python is an offline reference and evaluation engine, compatible with the actual existing Next.js deployment rather than dependent on a nonexistent FastAPI service. Every game has a real implementation behind a strict frozen dataclass signal contract, registry and bounded JSON stdin/stdout CLI. Standard library only; no dependency installation. Fifteen shared mathematical fixtures are consumed independently by Python and TypeScript test sources. Optional game-specific detail field names can differ while the signal contract and independently checked quantities agree by design; parity has not yet been executed.
 
-The normalized engine accepts `round-start`, `round-update`, and `round-completed`. Its visible statuses are pending, active, completed, and unknown. Explicit start establishes active/start time. Update without start remains pending/unknown rather than claiming a detected start. Complete mine positions exist only on completed records.
+## Backend, result records and evaluation
 
-Known selections accumulate, earlier observations cannot be regressed by older updates, and terminal results cannot be reopened or overwritten. Event ID/sequence conflicts are reported. Raw provider state is retained independently of outcome. A newer current observation is not replaced by an older snapshot. Detail caches are bounded; completed-ID tombstones remain for the tracking session. Completed history rehydrates through completion events without inventing a start.
+POST /api/analysis validates JSON content, stream size (64 KiB), game ID and bounded game inputs, returns the shared contract with no-store caching, and uses HTTP422 for invalid configurations. It performs no betting, account access, shell execution or Python subprocess call.
 
-The application connects this engine to imports and future adapter callbacks. Active events are transient, so reload recovery requires an actual authorized snapshot/replay. No authentic provider lifecycle event has been received or runtime-tested. See [the internal contract](./ROUND_TRACKING.md).
+Canonical manual completed records require gameId, roundId, completedAt, source:manual and game-specific data. Validated timestamps reject calendar rollover/future dates; conflicts preserve the first record. Opaque provider fields do not create canonical outcomes. Manual data never becomes provider-authenticated data.
 
-## 6. Signals and fairness
+Signals store their original inputs and timestamps before display/delivery. New all-game comparisons require exact game/round linkage and outcome chronology. Supported probability events are Penalty scored, Hilo selected win direction, strict Dice threshold, Keno all-selected-hit and Towers row survival. Saved baseline values are recomputed from validated input before evaluation. The browser groups identical configurations and reports samples, successes, failures, baseline, Brier score and Wilson95 intervals with their independence assumptions. Blackjack strategy, Poker current ranks and crash descriptive history are not mis-scored as future predictions. Existing Mines comparison/provenance behavior is preserved. Manual uploads and browser clocks cannot establish independent authenticity, unbiased sampling or prospective accuracy.
 
-Evaluation is automatic for exact precommitted identity with matching game/mine count and completion after generation. Fresh observed active provider identity can be captured at generation. Otherwise the existing explicit association workflow reuses imported mines after confirmation, or manual mine entry remains available. Pending signals are excluded from observed rates. Later/manual links are retrospective; local precommit records cannot prove unseen outcomes or an unbiased experiment.
+## Available connections and missing access
 
-**No genuine predictive capability has been demonstrated.** The supplied examples reveal full mines only after completion. Server-seed hashes do not disclose secret seeds: [NIST hash-function guidance](https://csrc.nist.gov/projects/hash-functions) describes preimage resistance, and [RFC 2104](https://www.rfc-editor.org/info/rfc2104/) specifies secret-key HMAC. The label `hmac_sha256:1` and public counters do not document the provider's complete board-generation algorithm.
+No live provider/result connection is established for any game. The existing optional Chrome companion remains presence-only. The new manual adapters accept genuine user-provided records but do not authenticate their origin. No endpoints, session replay, passwords, cookies or unauthorized data sources were invented.
 
-Fairness metadata can be inspected, but actual verification still requires documented serialization/algorithm/test vectors and legitimately disclosed seed material. No algorithm or winning positions were invented. The optional verifier API is preparation for documented post-round verification, not a working fairness proof or prediction model.
+Every real adapter still needs the provider identity/version, stable game/mode IDs, official complete rules, a permitted read-only feed/export, documented authentication, authentic sanitized fixtures, state/round/completion semantics, rate/replay ordering and retention/relay permission. [Exact per-game gaps](GAME_RULES_V4.md) include Penalty grid/payout/terminal meanings and Speed & Cash car/market settlement grouping. No extra account access is needed to use the configured analysis already implemented.
 
-## 7. Typography and controls
+## Tests written versus executed
 
-Shared CSS tokens now target:
+Passed locally:
 
-- Page headings 28–32px; section headings 22px; card headings 18px.
-- Body, form inputs, and navigation 16px; form/button labels 15–16px.
-- Table/secondary content 14px; metadata at least 13px; board tile numbers 18px.
-- Readable line heights, controls at least 44px high where applicable, wrap-safe IDs/hashes/errors, and horizontal table scrolling.
+~~~sh
+yarn lint
+node --test src/lib/analysis/analysis.test.cjs src/lib/analysis-records.test.cjs src/lib/telegram/validation.test.cjs
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=python python3 -m unittest discover -s python/tests
+node scripts/verify-python-parity.cjs
+node scripts/verify-telegram.cjs
+node node_modules/typescript/bin/tsc --noEmit
+yarn build
+~~~
 
-Analysis, Signals, History, Settings, sidebar, controls, statistics, probabilities, imports, status, empty states, errors, and mobile rules use the scale. Existing colors, sidebar/card hierarchy, and board layout were retained. Native confirmation dialogs remain browser-controlled. Disabled connection/auto-connect controls are styled as disabled with explanations; working controls retain event handlers. Mobile collapsed navigation has explicit accessible names.
+The loopback release check was `node scripts/verify-release.cjs http://127.0.0.1:3100` against a local `yarn start --port 3100`. It passed 34/34 checks. Lint reports seven warnings and no errors. No dependencies were installed.
 
-This is a code-level typography update. No screenshot/browser verification was performed, so rendered clipping, narrow-screen behavior, focus, and zoom still need manual checks.
+## Required environment and deployment steps
 
-## 8. Remaining issues and verification boundary
+Existing server-only settings: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET and APP_BASE_URL (public HTTPS). Optional production shared storage: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN together; TELEGRAM_STORE_NAMESPACE can isolate deployments. No Python service URL is required. No credentials or environment files were modified. Existing credential-like values were observed in .env.example and require operator review/rotation; they are deliberately not repeated here.
 
-- No authorized network source, active provider session, provider-authenticated data, actual fairness verifier, predictive model, or provider multiplier model.
-- Provider state/result and user completion assertions remain context supplied by the importer or future documented adapter, not inferred from a numeric state.
-- Imported modes/currencies are reported values and are not independently verified. Balances are not displayed/persisted.
-- Manual results without round identity cannot detect external-round reuse under another unlinked signal. Browser data is editable and not tamper-resistant.
-- Browser storage still has quota/security/deletion risks, no cross-key transaction, no multi-tab merge, and no device synchronization. Use one writing tab. Failed writes remain visible; originals and recovery backups are preserved within those constraints.
-- Limits remain 2 MiB/file, 5,000 import records, 500 stored rounds, and 1,000 signals/evaluations. Tracker details/signatures are separately bounded; session terminal-ID tombstones are transient and grow with observed completed IDs. Reload only recovers retained history/evaluation identities.
-- Signal/evaluation archive restoration remains unimplemented. Valid round exports can be imported. Last-import and active connection state are session-only. Clearing stored history does not erase transient knowledge that a round completed in the current session.
-- No terminal commands, build, lint, test execution, installations, dev-server startup, Git operation, or commit ran during this follow-up, as the brief requires explicit requests. Local Next.js guidance was read with direct file tools. Independent static reviews covered engine ordering, ingestion/evaluation limits, connection lifecycles, source/financial claims, fairness, CSS, and visible handlers. No runtime success is claimed.
+No production deployment was performed or approved. Before production, resolve the explicit Next.js-to-Python runtime integration requirement (or confirm that the offline-reference architecture is acceptable), configure/verify authorized provider data if required, and test protected setup, live webhook health, and shared Redis persistence/retry across instances. No credentials were changed.
 
-## 9. Manual verification
+## Additional release checks not performed
 
-Run these yourself against a local app using the repository's Yarn workflow; this agent did not execute commands. Use a disposable browser profile or download actual records before destructive/corruption checks. Verification fixtures must remain labeled user-provided, never authentic/live results.
+Live provider round imports, all Penalty steps and advanced game edge cases in the browser, corrupt/cross-tab browser storage, real Telegram delivery, Redis outages/leases across instances, and mobile/responsive accessibility remain untested. The offline Telegram suite covers the bot commands, menus, result recording, per-user state, retry behavior, and webhook validation only under mocked network/storage conditions.
 
-1. Open Analysis, Signals, History, and Settings using navigation. Confirm the default state is unavailable/disconnected, Connect and auto-connect are disabled, and missing endpoint/auth/schema/mode/rate/permission information is explained.
-2. Check all pages at desktop width and narrow mobile width, then 200% browser zoom. Inspect headings, board numbers, labels, buttons, tables, disclosures, errors, long IDs/hashes, and disabled controls for clipping/overlap. Tables should scroll rather than shrink text. Check keyboard focus and mobile navigation names.
-3. On Analysis, select/unselect tiles and change mine count. Confirm probability updates, pick limits, Reset selection, and New analysis. Zero picks should show 100% model survival; no hidden tile is described as verified safe.
-4. On Signals, generate a 3-mine signal with a unique ID such as `verification-001`. Note its original time/tiles. Mark/unmark tiles and reset marks; the saved suggestion must not change.
-5. After generation, make a completed-round fixture in the README envelope format with that ID, 3 valid mine positions, explicit completion/result, and a real completion timestamp later than generation. Import it. Expect one history row and automatic evaluation without re-entering mines. Check safe/mine overlap and measured statistics.
-6. Import two further completed fixtures with distinct genuine/test IDs and later completion times. Confirm the tracker displays the latest completed observation, source remains user-provided, no start time/active round is fabricated, and no manual app reset is needed. Refresh: retained history and evaluations should reload with completed-only status.
-7. Reimport identical data: expect duplicates and no extra evaluation. Change mines for an existing ID or supply two conflicting versions in one batch: expect rejection with original results unchanged after refresh. Mix valid records with duplicate/fractional/out-of-range positions, inconsistent mine count, invalid financial fields, invalid `ms_id`/`id`, missing context, and incomplete flags. Valid unrelated rows should survive with explicit rejection counts.
-8. Supply an unfamiliar valid raw state code with explicit completed/result context; it should be retained without inventing state meaning. Expand fairness/provider metadata. Confirm algorithm/hash/client seed/counters/raw state display, no balance is shown, and verification remains unavailable. Unknown mode/currency cashouts must remain unverified units; reported demo amounts must be labeled demo.
-9. Generate an unlinked signal, import its actual later completed round, select it, and cancel confirmation once. Confirm nothing changes; then confirm the association. It should reuse imported mines and show a later-association label. The same identified round cannot evaluate another signal. Manual mine entry should still validate visible tile numbers 1–25 and preserve earlier evaluations.
-10. Change mine/default pick count, theme, compact board, and freshness preference; refresh and verify persistence. Reset defaults. Existing older settings should gain safe connection defaults without losing other preferences. Auto-connect must remain unusable while source availability is blocked.
-11. Download originals in Settings. In a disposable profile's browser storage inspector, corrupt only `mines-lab:settings`, then reload. History import/saving must continue independently; settings should warn, preserve the original, and use defaults. Back up/recover it and verify a separate recovery key before saving resumes. Separately check mixed valid/invalid signal rows: valid records should survive while the original remains protected, and evaluation should pause until recovery.
-12. Verify exports and clear-history confirmations with disposable data. Cancel each clear once. Clearing rounds should leave saved signal evaluations intact; clearing signals explicitly clears their evaluations. At history capacity, new outcomes should be reported as not stored, while valid exact-ID evaluations can still be recorded. Quota/permission failures must show memory-only warnings.
+## Files created
 
-After official access exists, additional checks are required with a documented authorized adapter: two or more real start→update→completed cycles, completed-only snapshots, duplicate/out-of-order events, sequences, disconnect during pending connect, late deliveries after cleanup, documented recovery, config changes, stale/replayed data, mode behavior, and exactly-once signal evaluation. Those live checks are currently blocked by missing provider documentation/access and have not been performed.
+- src/app/api/analysis/route.ts
+- src/components/game-workspace.tsx
+- src/lib/analysis/analysis.test.cjs
+- src/lib/analysis/aviator.ts
+- src/lib/analysis/blackjack.ts
+- src/lib/analysis/coinflip.ts
+- src/lib/analysis/core.ts
+- src/lib/analysis/crash.ts
+- src/lib/analysis/dice.ts
+- src/lib/analysis/hilo.ts
+- src/lib/analysis/index.ts
+- src/lib/analysis/keno.ts
+- src/lib/analysis/lucky-jet.ts
+- src/lib/analysis/mines.ts
+- src/lib/analysis/penalty.ts
+- src/lib/analysis/plinko.ts
+- src/lib/analysis/poker.ts
+- src/lib/analysis/rocket-queen.ts
+- src/lib/analysis/rocket-x.ts
+- src/lib/analysis/speed-cash.ts
+- src/lib/analysis/towers.ts
+- src/lib/analysis/types.ts
+- src/lib/analysis-client-storage.ts
+- src/lib/analysis-records.test.cjs
+- src/lib/analysis-records.ts
+- src/lib/game-data-sources.ts
+- src/lib/mines-game-signal.ts
+- src/lib/telegram/validation.test.cjs
+- src/lib/telegram/validation.test.ts
+- src/lib/telegram/validation.ts
+- python/fixtures/analysis-cases.json
+- python/mines_lab_analysis/__main__.py
+- python/mines_lab_analysis/aviator.py
+- python/mines_lab_analysis/blackjack.py
+- python/mines_lab_analysis/coinflip.py
+- python/mines_lab_analysis/crash.py
+- python/mines_lab_analysis/dice.py
+- python/mines_lab_analysis/hilo.py
+- python/mines_lab_analysis/keno.py
+- python/mines_lab_analysis/lucky_jet.py
+- python/mines_lab_analysis/plinko.py
+- python/mines_lab_analysis/poker.py
+- python/mines_lab_analysis/registry.py
+- python/mines_lab_analysis/rocket_queen.py
+- python/mines_lab_analysis/rocket_x.py
+- python/mines_lab_analysis/signals.py
+- python/mines_lab_analysis/speed_cash.py
+- python/mines_lab_analysis/towers.py
+- python/mines_lab_analysis/validation.py
+- python/tests/test_cli.py
+- python/tests/test_engines.py
+- python/tests/test_evaluation.py
+- python/tests/test_parity_fixtures.py
+- docs/GAME_RULES_V4.md
+
+## Existing files modified
+
+- README.md
+- docs/IMPLEMENTATION_REPORT.md
+- docs/PENALTY_INTEGRATION_BLOCKERS.md
+- docs/REAL_DATA_INVESTIGATION.md
+- docs/TELEGRAM_BOT.md
+- src/app/page.tsx
+- src/app/globals.css
+- src/app/history/page.tsx
+- src/app/signals/page.tsx
+- src/app/api/telegram/webhook/route.ts
+- src/components/app-shell.tsx
+- src/components/inline-signals.tsx
+- src/components/penalty-workspace.tsx
+- src/lib/game-registry.ts
+- src/lib/telegram/api.ts
+- src/lib/telegram/bot.ts
+- src/lib/telegram/store.ts
+- src/lib/telegram/types.ts
+- python/README.md
+- python/mines_lab_analysis/__init__.py
+- python/mines_lab_analysis/contracts.py
+- python/mines_lab_analysis/evaluation.py
+- python/mines_lab_analysis/mines.py
+- python/mines_lab_analysis/penalty.py

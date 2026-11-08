@@ -7,6 +7,7 @@ export interface TelegramMessage {
   message_id: number;
   chat: TelegramChat;
   text?: string;
+  from?: { id: number; is_bot?: boolean };
 }
 
 export interface TelegramCallbackQuery {

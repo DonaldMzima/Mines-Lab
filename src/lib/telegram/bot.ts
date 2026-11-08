@@ -1,263 +1,301 @@
+import { analyzeGame, getDefaultInput, validateGameInput } from "@/lib/analysis";
+import type { GameSignal } from "@/lib/analysis";
+import { parseCompletedGameResult, evaluateGameRecord, summarizeEvaluations } from "@/lib/analysis-records";
+import type { CompletedGameResult } from "@/lib/analysis-records";
+import { getGameDefinition, isGameId } from "@/lib/game-registry";
+import type { GameId } from "@/lib/game-registry";
 import { generateSignal } from "@/lib/signals/generator";
-import { GAME_ID, tileIndexToNumber } from "@/lib/mines";
+import { toMinesGameSignal } from "@/lib/mines-game-signal";
+import { GAME_ID, isRecord, tileIndexToNumber } from "@/lib/mines";
 import type { GameRound } from "@/lib/mines";
 import { answerTelegramCallback, editTelegramMessage, sendTelegramMessage } from "@/lib/telegram/api";
-import { allowTelegramAction, claimTelegramUpdate, getTelegramUser, releaseTelegramUpdate, rememberTelegramRound, updateTelegramUser } from "@/lib/telegram/store";
+import { allowTelegramAction, claimTelegramUpdate, completeTelegramUpdate, getTelegramUser, releaseTelegramUpdate, rememberTelegramCompletedResult, rememberTelegramRound, rememberTelegramSignal, telegramStorageMode, updateTelegramUser, withTelegramUserLock } from "@/lib/telegram/store";
 import type { TelegramUserState } from "@/lib/telegram/store";
 import type { TelegramCallbackQuery, TelegramUpdate, InlineKeyboardMarkup } from "@/lib/telegram/types";
-import { formatPenaltyProbability, getPenaltySeriesAnalysis, PENALTY_RTP, PENALTY_TURBO_SCORE_PROBABILITY } from "@/lib/penalty";
-import type { PenaltyMode } from "@/lib/penalty";
+import { formatPenaltyProbability, getPenaltySeriesAnalysis } from "@/lib/penalty";
 
+const icons: Record<GameId, string> = { mines: "💣", penalty: "⚽", blackjack: "🃏", hilo: "🃏", dice: "🎲", plinko: "🔵", keno: "🔢", towers: "🏰", coinflip: "🪙", poker: "♠️", "lucky-jet": "🚀", "rocket-queen": "🚀", "rocket-x": "🚀", aviator: "✈️", "speed-cash": "🏎️" };
 const mineCounts = [2, 3, 5, 7] as const;
 const suggestionCounts = [1, 2, 3, 4, 5] as const;
-
-function controls(): InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "Mine count", callback_data: "mines" }, { text: "Suggestions", callback_data: "suggestions" }],
-      [{ text: "Experimental Suggestions", callback_data: "signal" }],
-      [{ text: "Penalty analysis", callback_data: "penalty" }],
-      [{ text: "Completed Result", callback_data: "completed" }, { text: "History", callback_data: "history" }],
-      [{ text: "Notifications", callback_data: "notifications" }, { text: "Status", callback_data: "status" }, { text: "Help", callback_data: "help" }],
-    ],
-  };
+function gameName(id: GameId): string { return icons[id] + " " + getGameDefinition(id).name.toUpperCase(); }
+function gameButton(id: GameId) { return { text: icons[id] + " " + getGameDefinition(id).name, callback_data: "game:" + id }; }
+function menu(category: "main" | "crash" | "more" = "main"): InlineKeyboardMarkup {
+  const games: GameId[] = category === "crash" ? ["lucky-jet", "rocket-queen", "rocket-x", "aviator", "speed-cash"] : category === "more" ? ["hilo", "plinko", "keno", "towers", "coinflip", "poker"] : ["mines", "penalty", "blackjack", "dice"];
+  const rows = Array.from({ length: Math.ceil(games.length / 2) }, (_, i) => games.slice(i * 2, i * 2 + 2).map(gameButton));
+  rows.push(category === "main" ? [{ text: "🚀 Crash", callback_data: "menu:crash" }, { text: "🎮 More Games", callback_data: "menu:more" }] : [{ text: "All Games", callback_data: "menu:main" }]);
+  return { inline_keyboard: rows };
 }
-
-function penaltyControls(state: TelegramUserState): InlineKeyboardMarkup {
-  return { inline_keyboard: [[
-    { text: `${state.penaltyMode === "turbo" ? "✓ " : ""}Turbo`, callback_data: "penalty:turbo" },
-    { text: `${state.penaltyMode === "series" ? "✓ " : ""}Series`, callback_data: "penalty:series" },
-  ]] };
+function controls(game: GameId): InlineKeyboardMarkup {
+  const rows = [
+    [{ text: "Get Signal", callback_data: "signal" }, { text: "Game Settings", callback_data: "settings" }],
+    [{ text: "Latest Result", callback_data: "completed" }, { text: "History", callback_data: "history" }],
+    [{ text: "Connection Status", callback_data: "status" }, { text: "Details", callback_data: "details" }],
+    [{ text: "Choose Game", callback_data: "menu:main" }, { text: "Notifications", callback_data: "notifications" }],
+  ];
+  if (game === "mines") rows.unshift([{ text: "Mine count", callback_data: "mines" }, { text: "Suggestions", callback_data: "suggestions" }]);
+  if (game === "penalty") rows.unshift([{ text: "Turbo", callback_data: "penalty:turbo" }, { text: "Series", callback_data: "penalty:series" }]);
+  return { inline_keyboard: rows };
 }
-
-function penaltyText(mode: PenaltyMode): string {
-  if (mode === "turbo") {
-    return [
-      "PENALTY — TURBO ANALYSIS",
-      `RTP: ${formatPenaltyProbability(PENALTY_RTP)}`,
-      `Theoretical score probability: ${formatPenaltyProbability(PENALTY_TURBO_SCORE_PROBABILITY)}`,
-      `Theoretical save probability: ${formatPenaltyProbability(1 - PENALTY_TURBO_SCORE_PROBABILITY)}`,
-      "One shot. This does not predict a goalkeeper direction or an individual outcome.",
-      "No live Penalty data feed or verified Turbo payout schedule is connected.",
-    ].join("\n");
-  }
-  const steps = getPenaltySeriesAnalysis().map((step) =>
-    `Step ${step.step}: score ${formatPenaltyProbability(step.scoreProbability)} · cumulative ${formatPenaltyProbability(step.cumulativeScoreProbability)} · shown ${step.displayedMultiplier.toFixed(2)}×`,
-  );
-  return [
-    "PENALTY — SERIES ANALYSIS",
-    `RTP: ${formatPenaltyProbability(PENALTY_RTP)}`,
-    ...steps,
-    "Cumulative probability is the product of the documented conditional scoring probabilities.",
-    "Displayed multipliers do not alone verify expected return or cash-out rules. No direction prediction or live data feed is available.",
-  ].join("\n");
+function configFor(state: TelegramUserState): Record<string, unknown> {
+  const config = { ...getDefaultInput(state.selectedGame), ...state.gameConfigs[state.selectedGame] };
+  if (state.selectedGame === "penalty") { config.mode = state.penaltyMode; if (state.penaltyMode === "turbo") config.step = 1; }
+  if (state.selectedGame === "mines") { config.mines = state.mineCount; config.picks = state.suggestionCount; }
+  if (typeof config.roundId === "string") config.roundId = config.roundId.trim();
+  return config;
 }
-
-function mineCountControls(state: TelegramUserState): InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [mineCounts.map((count) => ({
-      text: `${state.mineCount === count ? "✓ " : ""}${count} mines`,
-      callback_data: `mines:${count}`,
-    }))],
-  };
-}
-
-function suggestionCountControls(state: TelegramUserState): InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [suggestionCounts.map((count) => ({
-      text: `${state.suggestionCount === count ? "✓ " : ""}${count} tile${count === 1 ? "" : "s"}`,
-      callback_data: `suggestions:${count}`,
-    }))],
-  };
-}
-
 function board(state: TelegramUserState): InlineKeyboardMarkup {
   const suggested = new Set(state.latestSignal?.suggestedTiles ?? []);
   const selected = new Set(state.selectedTiles);
-  return {
-    inline_keyboard: Array.from({ length: 5 }, (_, row) => Array.from({ length: 5 }, (_, col) => {
+  return { inline_keyboard: [
+    ...Array.from({ length: 5 }, (_, row) => Array.from({ length: 5 }, (_, col) => {
       const tile = row * 5 + col;
-      const label = selected.has(tile) ? "•" : suggested.has(tile) ? "✳" : "·";
-      return { text: `${label}${String(tileIndexToNumber(tile)).padStart(2, "0")}`, callback_data: `tile:${tile}` };
+      return { text: (selected.has(tile) ? "•" : suggested.has(tile) ? "✳" : "·") + String(tileIndexToNumber(tile)).padStart(2, "0"), callback_data: "tile:" + tile };
     })),
-  };
+    [{ text: "Get Signal", callback_data: "signal" }, { text: "Game Settings", callback_data: "settings" }],
+    [{ text: "Choose Game", callback_data: "menu:main" }],
+  ] };
 }
-
-function statusText(chatId: number): string {
-  const state = getTelegramUser(chatId);
-  const last = state.rounds[0];
-  return [
-    "Mines Lab status",
-    "Telegram bot: online",
-    "Browser game detection: unavailable to the server-side bot",
-    "1win live connection: unavailable",
-    "Penalty: theoretical probability analysis available; no live data",
-    "Data source: unavailable",
-    "Bot storage: separate from browser history",
-    `Mine count: ${state.mineCount}`,
-    `Suggestion count: ${state.suggestionCount}`,
-    `Completed-round notifications: ${state.notificationsEnabled ? "enabled" : "disabled"}`,
-    `Last completed result: ${last ? `${last.id} · ${last.minePositions.length} mines` : "none received"}`,
-  ].join("\n");
+function shortSignal(signal: GameSignal): string {
+  return [gameName(signal.gameId as GameId), signal.gameMode ? "Mode: " + signal.gameMode : "", "Round: " + (signal.roundId ?? "Not connected"), "", "SIGNAL", signal.action ?? "No verified action available.", signal.summary, "Status: " + (signal.status === "validated" ? "validated calculation" : signal.status), ...(signal.details.rulesConfirmed !== undefined ? ["Rules: " + (signal.details.rulesConfirmed === true ? "user configured" : "example configuration")] : []), "Connection: Not connected"].filter((line, i, arr) => line !== "" || arr[i - 1] !== "").join("\n");
 }
-
-function historyText(chatId: number): string {
-  const rounds = getTelegramUser(chatId).rounds;
-  if (!rounds.length) return "No completed game-data results are available to this bot yet.";
-  return ["Recent completed results", ...rounds.slice(0, 5).map((round) => `${round.id} · ${round.minePositions.length} mines · ${round.result === "unknown" ? "finished" : round.result}`)].join("\n");
+async function penaltySummary(state: TelegramUserState, signal = analyzeGame("penalty", configFor(state))): Promise<void> {
+  const config = configFor(state);
+  const step = typeof config.step === "number" && Number.isInteger(config.step) && config.step >= 1 && config.step <= 5 ? config.step : 1;
+  const series = getPenaltySeriesAnalysis()[step - 1];
+  await sendTelegramMessage(state.chatId, ["⚽ PENALTY", "Mode: " + state.penaltyMode, ...(state.penaltyMode === "series" ? ["Step: " + step] : []), "Round: " + (typeof config.roundId === "string" ? config.roundId + " (manual)" : "Not connected"), "", signal.summary, ...(state.penaltyMode === "series" ? ["Reach chance: " + formatPenaltyProbability(series.cumulativeScoreProbability)] : []), "Direction signal: Unavailable", "Connection: Not connected"].join("\n"), controls("penalty"));
 }
-
-function sourceText(round: GameRound): string {
-  if (round.source === "demo") return "Local simulation";
-  if (round.source === "provider" || round.source === "live") return "Provider adapter record";
-  if (round.source === "manual") return "User-entered record";
-  return "User-imported record";
-}
-
-function completedRoundText(chatId: number): string {
-  const round = getTelegramUser(chatId).rounds[0];
-  if (!round) return "No confirmed completed-round result is available.";
-  const positions = round.minePositions.map(tileIndexToNumber).sort((first, second) => first - second);
-  return [
-    "MINES LAB — COMPLETED ROUND",
-    "",
-    `Round: ${round.id}`,
-    `Mode: ${round.mode ?? "unknown"}`,
-    `Mines: ${round.bombCount}`,
-    `Result: ${round.result === "unknown" ? "Finished" : round.result.replace("_", " ")}`,
-    `Received: ${new Date(round.timestamp).toISOString()}`,
-    "",
-    `Bomb positions: ${positions.map((position) => String(position).padStart(2, "0")).join(", ")}`,
-    `Source: ${sourceText(round)}`,
-    "Verification: structurally validated; provider origin is not independently verified by this bot.",
-  ].join("\n");
-}
-
 async function sendSignal(chatId: number): Promise<void> {
-  const state = getTelegramUser(chatId);
-  const signal = generateSignal({
-    gameId: GAME_ID,
-    mineCount: state.mineCount,
-    suggestedTileCount: state.suggestionCount,
+  let state = await getTelegramUser(chatId);
+  const input = configFor(state);
+  if (typeof input.roundId === "string" && ((state.signalHistory[state.selectedGame] ?? []).some(record => record.signal.roundId === input.roundId) || (state.completedResults[state.selectedGame] ?? []).some(result => result.roundId === input.roundId) || (state.selectedGame === "mines" && state.rounds.some(round => round.id === input.roundId)))) {
+    await sendTelegramMessage(chatId, "This round already has a recorded signal or completed result. View /details or use the next round ID in /config.", controls(state.selectedGame)); return;
+  }
+  let signal = analyzeGame(state.selectedGame, input);
+  if (state.selectedGame === "mines") {
+    const legacy = generateSignal({ gameId: GAME_ID, mineCount: state.mineCount, suggestedTileCount: state.suggestionCount, ...(typeof input.roundId === "string" ? { roundId: input.roundId } : {}) });
+    state = await updateTelegramUser(chatId, { latestSignal: legacy, selectedTiles: [] });
+    signal = toMinesGameSignal(legacy);
+  }
+  // Persist the exact input and signal before delivering it or receiving an outcome.
+  await rememberTelegramSignal(chatId, signal, input);
+  if (state.selectedGame === "penalty") { await penaltySummary(state, signal); return; }
+  await sendTelegramMessage(chatId, shortSignal(signal) + (state.selectedGame === "mines" ? "\nRandom suggestions; no tile is verified safe." : "\nUse /details for the calculation basis."), state.selectedGame === "mines" ? board(state) : controls(state.selectedGame));
+}
+async function settings(chatId: number): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  const input = configFor(state);
+  const lines = [gameName(state.selectedGame), "Game settings", JSON.stringify(input, null, 2), "", "Change fields with /config {JSON}", "Use your known state and checked rules. Defaults are examples.", "Optional roundId links a future completed record."];
+  if (state.selectedGame === "penalty") lines.push("Choose Turbo/Series below. Set step 1–5 with /config.");
+  if (state.selectedGame === "mines") lines.push("Mine count and suggestion count have separate buttons.");
+  await sendTelegramMessage(chatId, lines.join("\n").slice(0, 3900), controls(state.selectedGame));
+}
+async function status(chatId: number): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  await sendTelegramMessage(chatId, [gameName(state.selectedGame), "Connection: Not connected", "Source: manual input only", "Bot storage: " + telegramStorageMode(), "Browser history: separate", "Notifications: " + (state.notificationsEnabled ? "enabled" : "disabled"), "Validated future accuracy: unavailable"].join("\n"), controls(state.selectedGame));
+}
+async function details(chatId: number): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  const record = state.signalHistory[state.selectedGame]?.[0];
+  await sendTelegramMessage(chatId, record ? [gameName(state.selectedGame), "Latest analysis details", record.signal.explanation ?? record.signal.source, JSON.stringify(record.signal.details, null, 2), "Generated: " + record.signal.generatedAt].join("\n").slice(0, 3900) : "No signal recorded for this game. Choose Get Signal first.", controls(state.selectedGame));
+}
+function minesResult(round: GameRound): string {
+  return ["💣 MINES — COMPLETED RESULT", "Round: " + round.id, "Mines: " + round.bombCount, "Result: " + round.result, "Bomb tiles: " + round.minePositions.map(tile => String(tileIndexToNumber(tile)).padStart(2, "0")).join(", "), "Source: " + round.source, "Provider origin not independently verified."].join("\n");
+}
+async function latestResult(chatId: number): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  const result = state.completedResults[state.selectedGame]?.[0];
+  const text = result ? [gameName(state.selectedGame) + " — COMPLETED RESULT", "Round: " + result.roundId, "Completed: " + result.completedAt, JSON.stringify(result.data), "Source: manual record; not independently verified"].join("\n") : state.selectedGame === "mines" && state.rounds[0] ? minesResult(state.rounds[0]) : "No completed result recorded for this game. Use /record with a completed manual record. See /help.";
+  await sendTelegramMessage(chatId, text.slice(0, 3900), controls(state.selectedGame));
+}
+async function history(chatId: number): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  const results = state.completedResults[state.selectedGame] ?? [];
+  const records = state.signalHistory[state.selectedGame] ?? [];
+  const evaluations = results.flatMap(result => {
+    const candidates = records.filter(record => record.signal.roundId === result.roundId);
+    if (candidates.length !== 1) return [];
+    try { const evaluated = evaluateGameRecord(candidates[0], result); return evaluated ? [evaluated] : []; } catch { return []; }
   });
-  const next = updateTelegramUser(chatId, { latestSignal: signal, selectedTiles: [] });
-  await sendTelegramMessage(chatId, `Experimental Suggestions: ${signal.suggestedTiles.length} tile${signal.suggestedTiles.length === 1 ? "" : "s"} for ${signal.mineCount} mines. Purple ✳ tiles are not verified safe and do not predict future mine positions.`, board(next));
+  const summary = summarizeEvaluations(evaluations);
+  const lines = [gameName(state.selectedGame), "COMPLETED RESULTS", ...results.slice(0, 5).map(result => result.roundId + " · " + result.completedAt + " · manual"), ...(!results.length ? [state.selectedGame === "mines" && state.rounds.length ? state.rounds.length + " server-known Mines results; /result shows latest" : "None recorded"] : []), "", "SIGNAL HISTORY", ...records.slice(0, 5).map(record => record.signal.generatedAt + " · " + (record.signal.action ?? "Unavailable") + " · " + record.signal.status), ...(!records.length ? ["None recorded"] : []), "", ...(summary ? ["Manual event successes: " + summary.successes + "/" + summary.samples, "Observed: " + (100 * summary.observedRate).toFixed(1) + "% · model baseline: " + (100 * summary.meanBaseline).toFixed(1) + "%", "95% interval: " + summary.wilson95.map(value => (value * 100).toFixed(1) + "%").join("–"), "Mean Brier score: " + summary.meanBrierScore.toFixed(4)] : []), "Independently evaluated accuracy: unavailable"];
+  await sendTelegramMessage(chatId, lines.join("\n").slice(0, 3900), controls(state.selectedGame));
 }
+async function configure(chatId: number, raw: string): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  let updates: Partial<Omit<TelegramUserState, "chatId">>;
+  try {
+    if (!raw || raw.length > 16_000) throw new Error("Send /config followed by a settings object.");
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) throw new Error("Settings must be a JSON object.");
+    const allowedKeys = new Set([...Object.keys(getDefaultInput(state.selectedGame)), "roundId"]);
+    if (Object.keys(parsed).some(key => !allowedKeys.has(key))) throw new Error("Unknown setting. Use /settings to view supported fields.");
+    const input = { ...configFor(state), ...parsed };
+    if (input.roundId === null) delete input.roundId;
+    else if (typeof input.roundId === "string") input.roundId = input.roundId.trim();
+    if (JSON.stringify(input).length > 16_000) throw new Error("Settings exceed the 16 KB limit.");
+    const errors = validateGameInput(state.selectedGame, input);
+    if (errors.length) throw new Error(errors.join(" "));
+    updates = { gameConfigs: { ...state.gameConfigs, [state.selectedGame]: input } };
+    if (state.selectedGame === "penalty" && (input.mode === "turbo" || input.mode === "series")) updates.penaltyMode = input.mode;
+    if (state.selectedGame === "mines") {
+      if (!mineCounts.some(count => count === input.mines) || !suggestionCounts.some(count => count === input.picks)) throw new Error("Mines supports counts 2, 3, 5, 7 and 1–5 suggestions.");
+      updates.mineCount = input.mines as TelegramUserState["mineCount"]; updates.suggestionCount = input.picks as TelegramUserState["suggestionCount"];
+    }
+  } catch (error) {
+    await sendTelegramMessage(chatId, (error instanceof Error ? error.message : "Invalid settings.").slice(0, 1000), controls(state.selectedGame)); return;
+  }
+  await updateTelegramUser(chatId, updates);
+  await sendTelegramMessage(chatId, "Settings saved for " + getGameDefinition(state.selectedGame).name + ".", controls(state.selectedGame));
+}
+async function recordResult(chatId: number, raw: string): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  let result: CompletedGameResult;
+  try {
+    if (!raw || raw.length > 16_000) throw new Error("Use /record {gameId,roundId,completedAt,source:\"manual\",data:{...}} with valid JSON.");
+    result = parseCompletedGameResult(JSON.parse(raw));
+    if (result.gameId !== state.selectedGame) throw new Error("Select the matching game first.");
+  } catch (error) {
+    await sendTelegramMessage(chatId, (error instanceof Error ? error.message : "Invalid completed record.").slice(0, 1000), controls(state.selectedGame)); return;
+  }
+  const prior = state.completedResults[result.gameId]?.find(item => item.roundId === result.roundId);
+  if (prior && JSON.stringify(prior) !== JSON.stringify(result)) { await sendTelegramMessage(chatId, "This round has a conflicting saved result. The original was preserved.", controls(state.selectedGame)); return; }
+  const added = await rememberTelegramCompletedResult(chatId, result);
+  if (getGameDefinition(state.selectedGame).category === "crash") {
+    const fresh = await getTelegramUser(chatId);
+    const config = configFor(fresh);
+    if (validateGameInput(state.selectedGame, config).length) { await sendTelegramMessage(chatId, "Completed result saved separately. Existing configured history needs review in /settings and was preserved.", controls(state.selectedGame)); return; }
+    const previous = Array.isArray(config.history) ? config.history.filter(isRecord) : [];
+    const incoming = { roundId: result.roundId, completedAt: result.completedAt, multiplier: result.data.multiplier, source: "manual" };
+    const existing = previous.find(item => item.roundId === incoming.roundId);
+    if (existing && (existing.multiplier !== incoming.multiplier || Date.parse(String(existing.completedAt)) !== Date.parse(incoming.completedAt))) {
+      await sendTelegramMessage(chatId, "Completed result saved separately. Your configured history has a conflicting record and was preserved.", controls(state.selectedGame)); return;
+    }
+    const nextConfig = { ...config, history: existing ? previous : [incoming, ...previous] };
+    if (JSON.stringify(nextConfig).length > 16_000) {
+      await sendTelegramMessage(chatId, "Completed result saved. Configured history is at capacity and was preserved.", controls(state.selectedGame)); return;
+    }
+    const errors = validateGameInput(state.selectedGame, nextConfig);
+    if (errors.length) {
+      await sendTelegramMessage(chatId, "Completed result saved separately. Configured historical analysis was preserved; check /settings.", controls(state.selectedGame)); return;
+    }
+    await updateTelegramUser(chatId, { gameConfigs: { ...fresh.gameConfigs, [state.selectedGame]: nextConfig } });
+  }
 
+  await sendTelegramMessage(chatId, added ? "Completed manual result saved. Source is not independently verified." : "This completed result is already saved.", controls(state.selectedGame));
+}
+async function notifications(chatId: number, enabled?: boolean): Promise<void> {
+  const state = await getTelegramUser(chatId);
+  // Set the desired value rather than toggling: a failed send can replay this update safely.
+  const next = enabled === undefined ? state : await updateTelegramUser(chatId, { notificationsEnabled: enabled });
+  await sendTelegramMessage(chatId,
+    "Completed-result notifications: " + (next.notificationsEnabled ? "enabled" : "disabled") +
+    ". Choose a preference. A permitted server data source is required for live notifications.",
+    { inline_keyboard: [
+      [{ text: (next.notificationsEnabled ? "✓ " : "") + "Enable", callback_data: "notifications:on" },
+       { text: (!next.notificationsEnabled ? "✓ " : "") + "Disable", callback_data: "notifications:off" }],
+      [{ text: "Back to Game", callback_data: "game:" + state.selectedGame }],
+    ] });
+}
 async function handleCommand(chatId: number, text: string): Promise<void> {
-  const command = text.trim().toLowerCase().split(/\s+/)[0]?.split("@")[0];
-  if (command === "/start") {
-    await sendTelegramMessage(chatId, "Welcome to Mines Lab!\n\nChoose the mine count and the independent number of experimental suggestions, then generate a board. Suggestions are random and not verified safe.\n\nChoose an option below.", controls());
-    return;
-  }
+  const [head = ""] = text.trim().split(/\s+/, 1);
+  const command = head.toLowerCase().split("@")[0];
+  const body = text.trim().slice(head.length).trim();
+  if (command === "/start" || command === "/games") { await sendTelegramMessage(chatId, "MINES LAB\n\nChoose Game", menu()); return; }
   if (command === "/help") {
-    await sendTelegramMessage(chatId, "Commands:\n/start — open controls\n/help — show this help\n/status — bot and data status\n/signal — experimental random suggestions\n/penalty — theoretical Penalty analysis\n/result — latest completed result\n/history — bot-known completed results\n/notifications — toggle completed-round notifications\n\nUse Mine count and Suggestions to configure the board. These settings are independent.", controls());
-    return;
+    await sendTelegramMessage(chatId, "MINES LAB\n/games — choose game\n/signal — selected game analysis\n/settings — settings and input format\n/config {JSON} — update selected game\n/details — calculations and limitations\n/result or /round — latest completed result\n/history — results and signals separately\n/status — connection and storage\n/penalty — select Penalty\n/notifications [on|off] — notification preference\n\n/record {\"gameId\":\"dice\",\"roundId\":\"your-round\",\"completedAt\":\"ISO timestamp\",\"source\":\"manual\",\"data\":{\"value\":42}}\n\nUse your actual completed records. Link a roundId in settings before Get Signal for prospective matching. Manual results do not establish verified accuracy. Mines suggestions are experimental random tiles.", menu()); return;
   }
-  if (command === "/status") { await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
   if (command === "/signal") { await sendSignal(chatId); return; }
-  if (command === "/penalty") {
-    const state = getTelegramUser(chatId);
-    await sendTelegramMessage(chatId, penaltyText(state.penaltyMode), penaltyControls(state));
-    return;
-  }
-  if (command === "/result" || command === "/round") { await sendTelegramMessage(chatId, completedRoundText(chatId), controls()); return; }
-  if (command === "/history") { await sendTelegramMessage(chatId, historyText(chatId), controls()); return; }
+  if (command === "/settings") { await settings(chatId); return; }
+  if (command === "/config") { await configure(chatId, body); return; }
+  if (command === "/record") { await recordResult(chatId, body); return; }
+  if (command === "/status") { await status(chatId); return; }
+  if (command === "/details") { await details(chatId); return; }
+  if (command === "/result" || command === "/round") { await latestResult(chatId); return; }
+  if (command === "/history") { await history(chatId); return; }
   if (command === "/notifications") {
-    const state = getTelegramUser(chatId);
-    const next = updateTelegramUser(chatId, { notificationsEnabled: !state.notificationsEnabled });
-    await sendTelegramMessage(chatId, `Completed-round notifications ${next.notificationsEnabled ? "enabled" : "disabled"}. Notifications are available only when an authorized server-side data source exists.`, controls());
-    return;
+    const choice = body.toLowerCase();
+    if (choice !== "" && choice !== "on" && choice !== "off") {
+      await sendTelegramMessage(chatId, "Use /notifications to choose, or /notifications on or off."); return;
+    }
+    await notifications(chatId, choice === "" ? undefined : choice === "on"); return;
   }
-  await sendTelegramMessage(chatId, "I don’t recognize that command. Send /help for available commands.", controls());
+  if (command === "/penalty") { const state = await updateTelegramUser(chatId, { selectedGame: "penalty" }); await penaltySummary(state); return; }
+  await sendTelegramMessage(chatId, "Send /games to choose a game or /help for commands.", menu());
 }
-
 async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
   const chatId = callback.message?.chat.id;
   if (!chatId || !callback.data) { await answerTelegramCallback(callback.id, "This control is no longer available."); return; }
   const data = callback.data;
-  if (data === "mines") {
-    await answerTelegramCallback(callback.id);
-    await sendTelegramMessage(chatId, "Choose the number of hidden mines. This does not change the suggestion count.", mineCountControls(getTelegramUser(chatId)));
-    return;
+  // Answer once before slow storage/analysis work. Acknowledgment alone does not mark an update completed.
+  await answerTelegramCallback(callback.id);
+  if (data.startsWith("menu:")) { const category = data.slice(5); if (category === "main" || category === "crash" || category === "more") { await sendTelegramMessage(chatId, "MINES LAB\n\nChoose Game", menu(category)); return; } }
+  if (data.startsWith("game:") && isGameId(data.slice(5))) {
+    const id = data.slice(5) as GameId;
+    await updateTelegramUser(chatId, { selectedGame: id });
+    await sendTelegramMessage(chatId, gameName(id) + "\nConnection: Not connected\n\nChoose settings, then Get Signal.", controls(id)); return;
   }
-  if (data === "suggestions") {
-    await answerTelegramCallback(callback.id);
-    await sendTelegramMessage(chatId, "Choose 1–5 experimental suggestion tiles. This does not change the mine count.", suggestionCountControls(getTelegramUser(chatId)));
-    return;
+  if (data === "signal") { await sendSignal(chatId); return; }
+  if (data === "settings") { await settings(chatId); return; }
+  if (data === "completed") { await latestResult(chatId); return; }
+  if (data === "history") { await history(chatId); return; }
+  if (data === "status") { await status(chatId); return; }
+  if (data === "details") { await details(chatId); return; }
+  // Older notification buttons open choices without changing saved opt-in.
+  if (data === "notifications" || data === "notifications:toggle") { await notifications(chatId); return; }
+  if (data === "notifications:on" || data === "notifications:off") {
+    await notifications(chatId, data === "notifications:on"); return;
   }
-  if (data === "signal") { await answerTelegramCallback(callback.id); await sendSignal(chatId); return; }
-  if (data === "penalty") {
-    const state = getTelegramUser(chatId);
-    await answerTelegramCallback(callback.id);
-    await sendTelegramMessage(chatId, penaltyText(state.penaltyMode), penaltyControls(state));
-    return;
-  }
-  if (data === "completed") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, completedRoundText(chatId), controls()); return; }
-  if (data === "notifications") {
-    const state = getTelegramUser(chatId);
-    const next = updateTelegramUser(chatId, { notificationsEnabled: !state.notificationsEnabled });
-    await answerTelegramCallback(callback.id, `Notifications ${next.notificationsEnabled ? "enabled" : "disabled"}.`);
-    await sendTelegramMessage(chatId, `Completed-round notifications ${next.notificationsEnabled ? "enabled" : "disabled"}.`, controls());
-    return;
-  }
-  if (data === "status") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
-  if (data === "help") { await answerTelegramCallback(callback.id); await handleCommand(chatId, "/help"); return; }
-  if (data === "history") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, historyText(chatId), controls()); return; }
-  const penaltyMode = /^penalty:(turbo|series)$/.exec(data);
-  if (penaltyMode) {
-    const next = updateTelegramUser(chatId, { penaltyMode: penaltyMode[1] as PenaltyMode });
-    await answerTelegramCallback(callback.id, `${penaltyMode[1]} analysis selected.`);
-    await sendTelegramMessage(chatId, penaltyText(next.penaltyMode), penaltyControls(next));
-    return;
-  }
+  if (data === "help") { await handleCommand(chatId, "/help"); return; }
+  if (data === "penalty") { const state = await updateTelegramUser(chatId, { selectedGame: "penalty" }); await penaltySummary(state); return; }
+  const mode = /^penalty:(turbo|series)$/.exec(data);
+  if (mode) { const state = await updateTelegramUser(chatId, { selectedGame: "penalty", penaltyMode: mode[1] as "turbo" | "series" }); await penaltySummary(state); return; }
+  if (data === "mines") { const state = await getTelegramUser(chatId); await sendTelegramMessage(chatId, "Choose mine count", { inline_keyboard: [mineCounts.map(count => ({ text: (state.mineCount === count ? "✓ " : "") + count, callback_data: "mines:" + count }))] }); return; }
+  if (data === "suggestions") { const state = await getTelegramUser(chatId); await sendTelegramMessage(chatId, "Choose suggestion count", { inline_keyboard: [suggestionCounts.map(count => ({ text: (state.suggestionCount === count ? "✓ " : "") + count, callback_data: "suggestions:" + count }))] }); return; }
   const count = /^mines:(2|3|5|7)$/.exec(data);
-  if (count) {
-    updateTelegramUser(chatId, { mineCount: Number(count[1]) as 2 | 3 | 5 | 7, selectedTiles: [] });
-    await answerTelegramCallback(callback.id, `${count[1]} mines selected.`);
-    await sendTelegramMessage(chatId, `Mine count set to ${count[1]}. Request a signal when ready.`, controls());
-    return;
-  }
-  const suggestionCount = /^suggestions:([1-5])$/.exec(data);
-  if (suggestionCount) {
-    updateTelegramUser(chatId, { suggestionCount: Number(suggestionCount[1]) as 1 | 2 | 3 | 4 | 5, selectedTiles: [] });
-    await answerTelegramCallback(callback.id, `${suggestionCount[1]} suggestion${suggestionCount[1] === "1" ? "" : "s"} selected.`);
-    await sendTelegramMessage(chatId, `Suggestion count set to ${suggestionCount[1]}. Mine count is unchanged. Request a signal when ready.`, controls());
-    return;
-  }
+  if (count) { await updateTelegramUser(chatId, { selectedGame: "mines", mineCount: Number(count[1]) as TelegramUserState["mineCount"], selectedTiles: [], latestSignal: undefined }); await sendTelegramMessage(chatId, "Mine count: " + count[1], controls("mines")); return; }
+  const suggestions = /^suggestions:([1-5])$/.exec(data);
+  if (suggestions) { await updateTelegramUser(chatId, { selectedGame: "mines", suggestionCount: Number(suggestions[1]) as TelegramUserState["suggestionCount"], selectedTiles: [], latestSignal: undefined }); await sendTelegramMessage(chatId, "Suggestion count: " + suggestions[1], controls("mines")); return; }
   const tile = /^tile:(\d{1,2})$/.exec(data);
   if (tile) {
-    const index = Number(tile[1]);
-    if (index < 0 || index > 24) { await answerTelegramCallback(callback.id, "Invalid tile."); return; }
-    const state = getTelegramUser(chatId);
-    const selectedTiles = state.selectedTiles.includes(index) ? state.selectedTiles.filter((item) => item !== index) : [...state.selectedTiles, index];
-    const next = updateTelegramUser(chatId, { selectedTiles });
-    await answerTelegramCallback(callback.id, `Tile ${tileIndexToNumber(index)} marked locally.`);
-    if (callback.message) await editTelegramMessage(chatId, callback.message.message_id, "Experimental random suggestion. Marks are local only; no tile is guaranteed safe.", board(next));
-    return;
+    const index = Number(tile[1]); const state = await getTelegramUser(chatId);
+    if (index > 24 || state.selectedGame !== "mines") { await sendTelegramMessage(chatId, "Select Mines and request a new board.", controls(state.selectedGame)); return; }
+    const selectedTiles = state.selectedTiles.includes(index) ? state.selectedTiles.filter(item => item !== index) : [...state.selectedTiles, index];
+    const next = await updateTelegramUser(chatId, { selectedTiles });
+    if (callback.message) await editTelegramMessage(chatId, callback.message.message_id, "MINES — Experimental random suggestions. Marks are local; no tile is verified safe.", board(next)); return;
   }
-  await answerTelegramCallback(callback.id, "Unknown control.");
+  await sendTelegramMessage(chatId, "That control is no longer available. Choose a game.", menu());
 }
-
 export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void> {
-  if (!claimTelegramUpdate(update.update_id)) return;
+  const token = await claimTelegramUpdate(update.update_id);
+  if (!token) return;
   try {
-    const chatId = update.message?.chat.id ?? update.callback_query?.message?.chat.id;
-    if (chatId !== undefined && !allowTelegramAction(chatId)) {
-      if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "Please wait a moment before trying again.");
-      else await sendTelegramMessage(chatId, "Please wait a moment before trying another command.");
-      return;
-    }
-    if (update.message?.chat && typeof update.message.text === "string") await handleCommand(update.message.chat.id, update.message.text);
-    else if (update.callback_query) await handleCallback(update.callback_query);
+    const message = update.message ?? update.callback_query?.message;
+    const senderId = update.message?.from?.id ?? update.callback_query?.from.id;
+    const chatId = message?.chat.id;
+    if (message && (message.chat.type !== "private" || (senderId !== undefined && senderId !== chatId))) {
+      if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "Open Mines Lab privately to keep your settings independent.");
+      else await sendTelegramMessage(message.chat.id, "Open @MinesLabSignalsBot privately to keep your settings and history independent.");
+    } else if (chatId !== undefined) {
+      await withTelegramUserLock(chatId, async () => {
+        if (!await allowTelegramAction(chatId)) {
+          if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "Please wait before trying again.");
+          else await sendTelegramMessage(chatId, "Please wait before trying another command.");
+          return;
+        }
+        // Register users before commands so notification opt-in persists in durable deployments.
+        await updateTelegramUser(chatId, {});
+        if (typeof update.message?.text === "string") await handleCommand(chatId, update.message.text);
+        else if (update.callback_query) await handleCallback(update.callback_query);
+      });
+    } else if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "This control is unavailable.");
+    await completeTelegramUpdate(update.update_id, token);
   } catch (error) {
-    releaseTelegramUpdate(update.update_id);
+    await releaseTelegramUpdate(update.update_id, token);
     throw error;
   }
 }
-
-/** Call only from a future genuine server-side game-data integration, never from browser localStorage. */
+/** Called only by an authorized server adapter. This does not connect a provider or read browser storage. */
 export async function notifyTelegramCompletedRound(round: GameRound): Promise<void> {
-  const users = rememberTelegramRound(round);
-  await Promise.allSettled(users.map((user) => sendTelegramMessage(user.chatId, `Round finished: ${round.id} · ${round.minePositions.length} mines. This is reported game data, not a prediction.`)));
+  const users = await rememberTelegramRound(round);
+  await Promise.allSettled(users.map(user => sendTelegramMessage(user.chatId, "💣 MINES — COMPLETED RESULT\nRound: " + round.id + "\nSource: " + round.source + "\nUse /result for details.")));
 }

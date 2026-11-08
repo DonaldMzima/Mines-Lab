@@ -1,0 +1,533 @@
+{
+  "description": "Independent mathematical fixtures shared by TypeScript and Python; never provider evidence.",
+  "tolerance": 1e-12,
+  "cases": [
+    {
+      "gameId": "mines",
+      "input": {
+        "mines": 3,
+        "picks": 3,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "survivalProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "survivalProbability"
+          ],
+          "value": 0.6695652173913044
+        }
+      ]
+    },
+    {
+      "gameId": "penalty",
+      "input": {
+        "mode": "series",
+        "step": 1
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "scoringProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "scoringProbability"
+          ],
+          "value": 0.5333
+        }
+      ]
+    },
+    {
+      "gameId": "blackjack",
+      "input": {
+        "cards": [
+          "5",
+          "6"
+        ],
+        "dealer": "10",
+        "profile": "multi-deck-s17-das",
+        "canDouble": true,
+        "canSplit": true,
+        "afterSplit": false,
+        "splitAces": false,
+        "rulesConfirmed": true
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "action"
+          ],
+          "pythonPath": [
+            "action"
+          ],
+          "value": "DOUBLE"
+        }
+      ]
+    },
+    {
+      "gameId": "hilo",
+      "input": {
+        "currentRank": 8,
+        "rankCounts": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "ties": "lose",
+        "rulesConfirmed": true
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "action"
+          ],
+          "pythonPath": [
+            "action"
+          ],
+          "value": "LOWER"
+        },
+        {
+          "tsPath": [
+            "details",
+            "lowerProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "lowerProbability"
+          ],
+          "value": 0.5384615384615384
+        }
+      ]
+    },
+    {
+      "gameId": "dice",
+      "input": {
+        "min": 0,
+        "max": 99,
+        "threshold": 50,
+        "direction": "under",
+        "grossPayout": 1.9,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "probability"
+          ],
+          "pythonPath": [
+            "details",
+            "winProbability"
+          ],
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "gameId": "coinflip",
+      "input": {
+        "headsProbability": 0.5,
+        "grossPayout": 1.9,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "headsProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "headsProbability"
+          ],
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "gameId": "plinko",
+      "input": {
+        "rows": 2,
+        "rightProbability": 0.5,
+        "payouts": [
+          2,
+          0,
+          2
+        ],
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "grossExpectedReturn"
+          ],
+          "pythonPath": [
+            "details",
+            "grossExpectedReturn"
+          ],
+          "value": 1
+        }
+      ]
+    },
+    {
+      "gameId": "keno",
+      "input": {
+        "pool": 5,
+        "drawn": 2,
+        "selections": [
+          1,
+          2
+        ],
+        "payouts": {},
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "distribution",
+            2,
+            "probability"
+          ],
+          "pythonPath": [
+            "details",
+            "hitProbabilities",
+            "2"
+          ],
+          "value": 0.1
+        }
+      ]
+    },
+    {
+      "gameId": "towers",
+      "input": {
+        "rows": [
+          {
+            "tiles": 3,
+            "hazards": 1
+          },
+          {
+            "tiles": 4,
+            "hazards": 1
+          }
+        ],
+        "steps": 2,
+        "grossPayout": 2,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "survivalProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "survivalProbability"
+          ],
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "gameId": "poker",
+      "input": {
+        "variant": "five-card",
+        "cards": [
+          "AS",
+          "KS",
+          "QS",
+          "JS",
+          "TS"
+        ],
+        "discardIndexes": [],
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "enumeratedOutcomes"
+          ],
+          "pythonPath": [
+            "details",
+            "drawOutcomes"
+          ],
+          "value": 1
+        }
+      ]
+    },
+    {
+      "gameId": "lucky-jet",
+      "input": {
+        "history": [
+          {
+            "roundId": "a",
+            "completedAt": "2020-01-01T00:00:00Z",
+            "multiplier": 1,
+            "source": "import"
+          },
+          {
+            "roundId": "b",
+            "completedAt": "2020-01-01T00:00:01Z",
+            "multiplier": 2,
+            "source": "import"
+          },
+          {
+            "roundId": "c",
+            "completedAt": "2020-01-01T00:00:02Z",
+            "multiplier": 4,
+            "source": "import"
+          }
+        ],
+        "target": 2,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "historicalAtOrAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalAtOrAboveRate"
+          ],
+          "value": 0.6666666666666666
+        },
+        {
+          "tsPath": [
+            "details",
+            "historicalStrictlyAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalStrictlyAboveRate"
+          ],
+          "value": 0.3333333333333333
+        }
+      ]
+    },
+    {
+      "gameId": "rocket-queen",
+      "input": {
+        "history": [
+          {
+            "roundId": "a",
+            "completedAt": "2020-01-01T00:00:00Z",
+            "multiplier": 1,
+            "source": "import"
+          },
+          {
+            "roundId": "b",
+            "completedAt": "2020-01-01T00:00:01Z",
+            "multiplier": 2,
+            "source": "import"
+          },
+          {
+            "roundId": "c",
+            "completedAt": "2020-01-01T00:00:02Z",
+            "multiplier": 4,
+            "source": "import"
+          }
+        ],
+        "target": 2,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "historicalAtOrAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalAtOrAboveRate"
+          ],
+          "value": 0.6666666666666666
+        },
+        {
+          "tsPath": [
+            "details",
+            "historicalStrictlyAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalStrictlyAboveRate"
+          ],
+          "value": 0.3333333333333333
+        }
+      ]
+    },
+    {
+      "gameId": "rocket-x",
+      "input": {
+        "history": [
+          {
+            "roundId": "a",
+            "completedAt": "2020-01-01T00:00:00Z",
+            "multiplier": 1,
+            "source": "import"
+          },
+          {
+            "roundId": "b",
+            "completedAt": "2020-01-01T00:00:01Z",
+            "multiplier": 2,
+            "source": "import"
+          },
+          {
+            "roundId": "c",
+            "completedAt": "2020-01-01T00:00:02Z",
+            "multiplier": 4,
+            "source": "import"
+          }
+        ],
+        "target": 2,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "historicalAtOrAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalAtOrAboveRate"
+          ],
+          "value": 0.6666666666666666
+        },
+        {
+          "tsPath": [
+            "details",
+            "historicalStrictlyAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalStrictlyAboveRate"
+          ],
+          "value": 0.3333333333333333
+        }
+      ]
+    },
+    {
+      "gameId": "aviator",
+      "input": {
+        "history": [
+          {
+            "roundId": "a",
+            "completedAt": "2020-01-01T00:00:00Z",
+            "multiplier": 1,
+            "source": "import"
+          },
+          {
+            "roundId": "b",
+            "completedAt": "2020-01-01T00:00:01Z",
+            "multiplier": 2,
+            "source": "import"
+          },
+          {
+            "roundId": "c",
+            "completedAt": "2020-01-01T00:00:02Z",
+            "multiplier": 4,
+            "source": "import"
+          }
+        ],
+        "target": 2,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "historicalAtOrAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalAtOrAboveRate"
+          ],
+          "value": 0.6666666666666666
+        },
+        {
+          "tsPath": [
+            "details",
+            "historicalStrictlyAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalStrictlyAboveRate"
+          ],
+          "value": 0.3333333333333333
+        }
+      ]
+    },
+    {
+      "gameId": "speed-cash",
+      "input": {
+        "history": [
+          {
+            "roundId": "a",
+            "completedAt": "2020-01-01T00:00:00Z",
+            "multiplier": 1,
+            "source": "import"
+          },
+          {
+            "roundId": "b",
+            "completedAt": "2020-01-01T00:00:01Z",
+            "multiplier": 2,
+            "source": "import"
+          },
+          {
+            "roundId": "c",
+            "completedAt": "2020-01-01T00:00:02Z",
+            "multiplier": 4,
+            "source": "import"
+          }
+        ],
+        "target": 2,
+        "rulesConfirmed": false
+      },
+      "checks": [
+        {
+          "tsPath": [
+            "details",
+            "historicalAtOrAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalAtOrAboveRate"
+          ],
+          "value": 0.6666666666666666
+        },
+        {
+          "tsPath": [
+            "details",
+            "historicalStrictlyAboveProbability"
+          ],
+          "pythonPath": [
+            "details",
+            "historicalStrictlyAboveRate"
+          ],
+          "value": 0.3333333333333333
+        }
+      ]
+    }
+  ]
+}

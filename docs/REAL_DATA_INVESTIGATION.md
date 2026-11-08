@@ -1,6 +1,6 @@
 # Authorized game-data feasibility
 
-Research date: 7 November 2026; public-source searches and official page retrievals were repeated for the live-tracking and simplified Connect Game follow-ups. This is a public-documentation investigation, not a provider authorization or certification.
+Research date: 8 November 2026; public-source searches and official page retrievals were repeated for the live-tracking and simplified Connect Game follow-ups. This is a public-documentation investigation, not a provider authorization or certification.
 
 ## Result
 
@@ -8,7 +8,7 @@ No suitable documented, authorized read-only source for this application's 1win 
 
 The default application continues with local user-provided data while live access is unresolved. A successful `101 Switching Protocols` response establishes a WebSocket upgrade only. It establishes neither a gameplay message protocol nor permission for a third-party application to consume it.
 
-The simplified Connect Game investigation also reviewed a Chrome browser companion as the second-choice integration route. No provider permission or usable permitted round-data surface was established, so no extension or interception is implemented. User-granted `activeTab` access is separate from provider authorization, and Chrome's `webRequest` does not provide established WebSocket messages. See [browser companion feasibility](./BROWSER_COMPANION_FEASIBILITY.md) for primary Chrome references and the narrow architecture that could be used if permission and a schema are established.
+The simplified Connect Game investigation also reviewed a Chrome browser companion as the second-choice integration route. No provider permission or usable permitted round-data surface was established, so the implemented companion is limited to game presence; no outcome interception is implemented. User-granted `activeTab` access is separate from provider authorization, and Chrome's `webRequest` does not provide established WebSocket messages. See [browser companion feasibility](./BROWSER_COMPANION_FEASIBILITY.md) for primary Chrome references and the narrow architecture that could be used if permission and a schema are established.
 
 `src/lib/provider-config.ts` records only the supplied provider identity, game ID, and integration key by default. Its `unconfigured` branch has no transport, endpoint, authentication method, mode, or capability flags: unknown capabilities are not represented as false facts. The strict `documented` branch validates transport and supporting documentation references but does not grant authorization, implement a connector, or establish that supplied references are official. Credentials are not configuration fields, and URLs with embedded credentials or query parameters are rejected.
 
@@ -57,3 +57,10 @@ Any future model must be fixed before its evaluation rounds, use previously unse
 Obtain the provider's written confirmation of an authorized read-only completed-round export/feed and its official schema. Request one sanitized terminal-round fixture plus its stable round identifier, completion/result semantics, timestamp, fairness documentation, permitted scope, and rate limits. Use those facts to implement one connector against the existing import pipeline. Do not request user gambling passwords or reuse browser session cookies/tokens.
 
 For active-round tracking, additionally request documented start/update events, ordering/replay rules, supported subscriptions, and the meaning of selected/revealed tiles. If the provider authorizes completed-round history only, synchronize completions without fabricating round-start or progress events. Demo-mode support cannot be inferred from the existence of a demo game; confirm its API scope separately. No financial amount should be identified as real money without verified mode and currency.
+
+
+## V4 all-game review — 8 November 2026
+
+Public-source review now covers all fifteen catalog games. The [per-game evidence register](./GAME_RULES_V4.md) records the established mechanics and exact rule/source gaps. General descriptions from [1win](https://1win.com/casino?provider=Pragmatic+Play) and the [SPRIBE Aviator provider page](https://www.spribe.co/games/aviator) support broad crash/coinflip mechanics, not a completed-result protocol or a distribution inferred from RTP.
+
+All games remain Not connected. The implemented canonical manual adapter validates genuine user-provided completed records but cannot authenticate origin. No partner credentials, account passwords, cookies, undocumented endpoint replay or protected-session access were used. Exact IDs, modes, read-only authentication, state/round schemas, rate/replay guarantees and retention/relay permissions remain prerequisites for a real adapter.

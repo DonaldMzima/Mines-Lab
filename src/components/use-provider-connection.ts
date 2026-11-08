@@ -361,6 +361,7 @@ export function useProviderConnection({ adapter, config, autoConnect, staleAfter
   const connectGame = useCallback(() => runConnectionCheck(supportsCompletedRounds ? "history" : "live"), [runConnectionCheck, supportsCompletedRounds]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset connection state when its external source changes.
     disconnect();
     setLastConnectedAt(null);
     setConnectionTest({ status: "idle", result: null });
@@ -379,6 +380,7 @@ export function useProviderConnection({ adapter, config, autoConnect, staleAfter
 
   useEffect(() => {
     // A preference change never starts a retry loop; documented adapters own their recovery policy.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This starts an explicitly enabled external adapter.
     if (available && autoConnect) connect();
   }, [available, autoConnect, connect, configIdentity]);
 

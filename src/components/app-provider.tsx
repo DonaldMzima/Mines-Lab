@@ -104,6 +104,8 @@ export function AppProvider({ children, adapter, config = DEFAULT_MINES_PROVIDER
     for (const round of loaded.history.data) {
       recoveredTracker = trackRoundEvent(recoveredTracker, { type: "round-completed", round }, round.source === "provider" || round.source === "demo" ? round.source : "import").state;
     }
+    // Restore browser-local round state after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- This synchronizes persisted external state.
     commitTracking(recoveredTracker);
     const reconciled = loaded.signals.writable && loaded.evaluations.writable
       ? reconcileRoundEvaluations(loaded.history.data, loaded.signals.data, loaded.evaluations.data)
@@ -138,15 +140,19 @@ export function AppProvider({ children, adapter, config = DEFAULT_MINES_PROVIDER
 
   const { history, signals, evaluations, preferences } = workspace;
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Storage failures update the recovery status.
     if (ready && storageStatus.history.writable) persist("history", () => saveHistory(history));
   }, [history, ready, storageStatus.history.writable, persist]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Storage failures update the recovery status.
     if (ready && storageStatus.signals.writable) persist("signals", () => saveSignals(signals));
   }, [signals, ready, storageStatus.signals.writable, persist]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Storage failures update the recovery status.
     if (ready && storageStatus.evaluations.writable) persist("evaluations", () => saveSignalEvaluations(evaluations));
   }, [evaluations, ready, storageStatus.evaluations.writable, persist]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Storage failures update the recovery status.
     if (ready && storageStatus.preferences.writable) persist("preferences", () => savePreferences(preferences));
   }, [preferences, ready, storageStatus.preferences.writable, persist]);
 

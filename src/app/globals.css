@@ -615,6 +615,42 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Native modal focus containment keeps the workspace inert while help is open. */
+.simple-app-links { display: flex; flex-wrap: wrap; gap: 16px; }
+.simple-app-links a { color: #bac9e5; text-decoration: none; font-size: 14px; }
+.analysis-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.analysis-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-block: 12px; }
+.analysis-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 14px; color: #c4d2e7; }
+.analysis-field :is(input, select, textarea) { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #41536e; border-radius: 7px; background: #17263b; color: #edf2ff; font: inherit; }
+.analysis-field textarea { resize: vertical; font-family: monospace; }
+.analysis-tower-rows { grid-column: 1 / -1; padding: 14px; border: 1px solid #41536e; border-radius: 8px; }
+.analysis-tower-rows > div { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.analysis-tower-rows label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.analysis-tower-rows input { width: 68px; min-height: 40px; padding: 8px; border: 1px solid #41536e; border-radius: 5px; background: #17263b; color: #edf2ff; }
+.analysis-tower-rows > small { display: block; margin-top: 8px; color: #9eb0ca; }
+.analysis-field small, .analysis-check small, .analysis-confirm > small { color: #9eb0ca; font-size: 12px; line-height: 1.5; }
+.analysis-check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.5; color: #c4d2e7; }
+.analysis-check input { width: 18px; height: 18px; margin-top: 2px; accent-color: #75baf1; }
+.analysis-check span small { display: block; }
+.analysis-confirm { margin-block: 16px; padding: 14px; border-radius: 8px; background: #17263b; }
+.analysis-confirm > small { display: block; margin: 8px 0 0 28px; }
+.analysis-generate { width: 100%; min-height: 48px; margin-block: 18px; font-size: 16px; }
+.analysis-output { padding: 22px; margin-block: 6px 18px; border: 1px solid #456783; border-radius: 10px; background: #152b40; }
+.analysis-eyebrow { color: #9fc8eb; font-size: 12px; letter-spacing: 1.5px; }
+.analysis-output h3 { margin: 12px 0; font-size: clamp(20px, 4vw, 26px); line-height: 1.3; color: #edf6ff; }
+.analysis-output p { margin: 10px 0; color: #d2e3f4; }
+.analysis-output small { color: #acc4dc; }
+.analysis-details { color: #aebfd6; line-height: 1.6; padding-block: 16px; }
+.simple-advanced .analysis-details p { display: block; }
+.analysis-details h3 { margin-top: 24px; color: #dce7f5; }
+.analysis-details pre { max-width: 100%; max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; background: #0d1829; border-radius: 7px; font-size: 12px; }
+.analysis-history { list-style: none; padding: 0; }
+.analysis-history li { padding: 12px 0; border-bottom: 1px solid #293850; overflow-wrap: anywhere; }
+.analysis-history strong, .analysis-history span { display: block; }
+.analysis-history span { color: #9eb0ca; font-size: 12px; }
+.analysis-file-button { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 10px 14px; border: 1px solid #41536e; border-radius: 7px; color: #c4d2e7; cursor: pointer; }
+.analysis-file-button input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.analysis-workspace :is(input, select, textarea, button, summary):focus-visible, .simple-app-links a:focus-visible { outline: 2px solid #8acbff; outline-offset: 3px; }
+@media (max-width: 560px) { .analysis-fields { grid-template-columns: minmax(0, 1fr); } .simple-app-bar { flex-wrap: wrap; padding-block: 14px; gap: 12px; } .simple-app-links { gap: 14px; } }
 .help-dialog { position: fixed; inset: 0; width: min(780px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); margin: auto; padding: 32px; overflow-x: hidden; overflow-y: auto; border: 1px solid #354363; border-radius: 16px; background: #111827; color: #e9eef8; box-shadow: 0 24px 100px #0009; font-size: var(--font-size-body); line-height: 1.6; overscroll-behavior: contain; }
 .help-dialog::backdrop { background: #02050dc9; backdrop-filter: blur(4px); }
 .help-dialog-close { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #354363; border-radius: 9px; background: #1b263b; color: #c5d0e7; font-size: 24px; cursor: pointer; }

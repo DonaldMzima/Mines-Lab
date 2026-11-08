@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = "4.0.0"
 GameId = Literal[
     "mines", "penalty", "blackjack", "hilo", "dice", "plinko", "keno", "towers",
     "coinflip", "poker", "lucky-jet", "rocket-queen", "rocket-x", "aviator", "speed-cash",

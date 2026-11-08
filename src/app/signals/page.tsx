@@ -11,6 +11,7 @@ import {
   TOTAL_TILES,
 } from "@/lib/mines";
 import { useAppState } from "@/components/app-provider";
+import { GameWorkspace } from "@/components/game-workspace";
 import { DataStatus } from "@/components/data-status";
 import { RoundLinkForm } from "@/components/round-link-form";
 import { evaluateSignal } from "@/lib/signals/evaluator";
@@ -83,6 +84,8 @@ export default function SignalsPage() {
       ? current.filter((tile) => tile !== index)
       : [...current, index]);
   }
+
+  if (preferences.activeGameId !== "mines") return <GameWorkspace key={preferences.activeGameId} gameId={preferences.activeGameId} />;
 
   return (
     <>

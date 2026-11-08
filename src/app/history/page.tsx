@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useAppState } from "@/components/app-provider";
+import { GameWorkspace } from "@/components/game-workspace";
 import { DataStatus } from "@/components/data-status";
 import { RoundLinkForm } from "@/components/round-link-form";
 import { FairnessDetails } from "@/components/fairness-details";
@@ -16,7 +17,7 @@ function formatDate(timestamp: string): string {
 }
 
 export default function HistoryPage() {
-  const { history, signals, evaluations, addRounds, clearHistory, clearSignals, evaluate, lastImport } = useAppState();
+  const { preferences, history, signals, evaluations, addRounds, clearHistory, clearSignals, evaluate, lastImport } = useAppState();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [importIssues, setImportIssues] = useState<string[]>([]);
@@ -79,6 +80,8 @@ export default function HistoryPage() {
     clearSignals();
     setMessage("Signal history and evaluations cleared.");
   }
+
+  if (preferences.activeGameId !== "mines") return <GameWorkspace key={preferences.activeGameId} gameId={preferences.activeGameId} />;
 
   return (
     <>

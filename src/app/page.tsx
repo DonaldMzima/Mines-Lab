@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useAppState } from "@/components/app-provider";
 import { InlineSignals } from "@/components/inline-signals";
 import { PenaltyWorkspace } from "@/components/penalty-workspace";
+import { GameWorkspace } from "@/components/game-workspace";
 import { useBrowserGamePresence } from "@/components/use-browser-game-presence";
 import { getGameConnectionStatus } from "@/lib/game-connection-status";
 import { GAME_CATALOG, getGameDefinition } from "@/lib/game-registry";
@@ -46,18 +47,19 @@ export default function Home() {
       <main className="simple-mines-card" aria-labelledby="mines-lab-title">
         <header className="simple-mines-header">
           <h1 id="mines-lab-title">Mines Lab</h1>
-          <span className={`simple-status ${status === "Error" ? "is-error" : demoActive ? "is-demo" : liveStatus === "connected" ? "is-live" : ""}`} role="status">{status}</span>
+          <span className={`simple-status ${activeGame.id === "mines" && status === "Error" ? "is-error" : activeGame.id === "mines" && demoActive ? "is-demo" : activeGame.id === "mines" && liveStatus === "connected" ? "is-live" : ""}`} role="status">{activeGame.id === "mines" ? status === "Offline" ? "Not connected" : status : "Not connected"}</span>
         </header>
 
         <section className="simple-section" aria-labelledby="game-selector-heading">
           <h2 id="game-selector-heading">Games</h2>
           <div className="game-selector" role="list" aria-label="Game selector">
-            {GAME_CATALOG.map((game) => <button key={game.id} type="button" role="listitem" className={`game-selector-item ${preferences.activeGameId === game.id ? "is-selected" : ""}`} aria-pressed={preferences.activeGameId === game.id} onClick={() => updatePreferences({ ...preferences, activeGameId: game.id })}>{game.name}<small>{game.availability === "implemented" ? "Available" : "Planned"}</small></button>)}
+            {GAME_CATALOG.map((game) => <button key={game.id} type="button" role="listitem" className={`game-selector-item ${preferences.activeGameId === game.id ? "is-selected" : ""}`} aria-pressed={preferences.activeGameId === game.id} onClick={() => updatePreferences({ ...preferences, activeGameId: game.id })}>{game.name}</button>)}
           </div>
-          <p className="simple-help">Selected: <strong>{activeGame.name}</strong> · {activeGame.description}</p>
+          <p className="simple-help">Selected: <strong>{activeGame.name}</strong></p>
         </section>
 
         {activeGame.id === "mines" ? <>
+        <section className="simple-section"><InlineSignals /></section>
         <section className="simple-section" aria-label="Connection controls">
           <div className="simple-actions">
             {!demoActive ? <button type="button" className="primary-button" onClick={connectDemo}>Connect Demo</button> : <button type="button" className="secondary-button" onClick={disconnectDemo}>Disconnect Demo</button>}
@@ -106,12 +108,8 @@ export default function Home() {
           <label className="simple-mine-count">Demo mine count<select value={preferences.mineCount} onChange={(event) => updatePreferences({ ...preferences, mineCount: Number(event.target.value), suggestedTileCount: Math.min(preferences.suggestedTileCount, TOTAL_TILES - Number(event.target.value)) })}>{SUPPORTED_BOMB_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
         </section>
 
-        <details className="simple-advanced"><summary>Advanced</summary><div><InlineSignals /><p><Link href="/signals">Signal history</Link><Link href="/history">Round history</Link><Link href="/settings">Settings</Link></p></div></details>
-        </> : activeGame.id === "penalty" ? <PenaltyWorkspace /> : <section className="simple-section" aria-label={`${activeGame.name} availability`}>
-          <h2>{activeGame.name} analysis</h2>
-          <p className="simple-result">This game is planned. No verified 1win identifier, game rules, authorized data source, completed-result feed, or validated prediction model is available.</p>
-          <p className="simple-help">No connection or prediction controls are shown until a genuine supported capability exists.</p>
-        </section>}
+        <details className="simple-advanced"><summary>Details</summary><div><p><Link href="/signals">Signal history</Link><Link href="/history">Round history</Link><Link href="/settings">Settings</Link></p><p>{activeGame.description}</p></div></details>
+        </> : activeGame.id === "penalty" ? <PenaltyWorkspace /> : <GameWorkspace key={activeGame.id} gameId={activeGame.id} />}
       </main>
     </div>
   );

@@ -1,47 +1,23 @@
-# Penalty integration status
+# Penalty evidence and integration status
 
-Reviewed 8 November 2026.
+Reviewed 8 November 2026. This document supersedes the earlier claim that Penalty is only planned.
 
-## Decision
+## Implemented from supplied in-game evidence
 
-Penalty remains **planned**. Mines Lab does not implement probability, payout,
-history, prediction, or connection features for it because the facts required
-to calculate them have not been verified.
+Game ID v_1wingames:penalty and observed integration key vgsonewin2_penalty are retained. Supplied published RTP is 94%; Turbo scoring chance is 53.33%. Series conditional scoring chances are 53.33%, 53.33%, 46.67%, 46.67%, 33.33%, with observed displayed multipliers 1.81, 3.41, 7.30, 15.65 and 46.97.
 
-## What was checked
+Web and Telegram now support Turbo/Series configuration, Series step selection, Get Signal, scoring and cumulative reach probabilities, diagnostics, manual completed scored/saved records and history. Python independently calculates the same rounded-rule products. Get Signal states that a directional signal is unavailable.
 
-Public 1win pages found during this review describe the general casino service
-and Betwave sports-prediction rules. They do not document a Penalty game
-provider, identifier, direction count, goalkeeper/outcome contract, payout
-schedule, cash-out mechanics, game modes, completed-result format, or a
-read-only data API.
+Multiplying rounded scoring probabilities gives a rounded-rule approximation. Reach probability multiplied by the displayed multiplier remains a diagnostic, because full cash-out, gross/net and settlement rules have not been established. The published RTP does not override that missing evidence.
 
-## Missing evidence
+## Evidence still needed
 
-Before a Penalty workspace can calculate a score probability, consecutive-shot
-probability, multiplier probability, expected value, or cash-out comparison,
-Mines Lab needs provider-approved documentation for all of the following:
+1. An official versioned goal diagram, row/column bounds, coordinate orientation and reproducible request/response examples. Without this, drawing a specific clickable shooting grid would invent a layout.
+2. Documented terminal-state codes, stable round IDs, the meaning/timing of outcome.catches and any goalkeeper/goal coordinate mapping. ms_id remains a message ID. Observed state 2 remains in-progress only.
+3. Complete payout/cash-out rules, stake-return semantics, mode differences and rounding. The displayed Series numbers alone do not prove EV.
+4. A documented permitted read-only source, its authentication mechanism, usage/retention permission, timestamp semantics, replay/rate limits and sanitized authentic completed fixtures.
+5. For a directional recommendation, legitimate pre-shot observable features and a method fixed before independent evaluation rounds, with baselines, sample sizes and uncertainty.
 
-1. The exact Penalty game provider and stable game identifier.
-2. The legal shooting directions and the goalkeeper's possible responses.
-3. The outcome distribution and whether it changes by stage or mode.
-4. The multiplier and cash-out schedule, including any house edge.
-5. Demo and real-money mode differences.
-6. A permitted completed-round export or API, with round IDs, timestamps,
-   selected direction, outcome, multiplier, and terminal-state semantics.
-7. Permission to retain and relay those results to Mines Lab and Telegram.
+The existing observation parser remains read-only and does not manufacture terminal outcomes. The new canonical manual result schema requires explicit mode, step and scored:boolean, roundId and completedAt; it is user-provided evidence, not a decoding of catches. Coordinates and goalkeeper positions are neither inferred nor displayed as established.
 
-## Current behavior
-
-The game selector intentionally presents Penalty as planned and supplies no
-connection, prediction, or calculation controls. This avoids treating a
-generic football penalty assumption as a fact about a specific 1win product.
-
-## Implementation path after authorization
-
-Once the evidence above is available, add a game-specific parser that rejects
-unknown directions, mismatched payout stages, duplicate round IDs, and
-ambiguous terminal outcomes. Add pure probability functions only from the
-documented transition and payout rules; retain Demo and Real records separately.
-No browser traffic inspection, credential collection, betting, tile/action
-automation, or provider endpoint guessing is part of this path.
+No official shooting-grid or outcome API specification was established in the reviewed [operator material](https://1win.com/casino). No betting request, protected-session access or credential capture was performed.
