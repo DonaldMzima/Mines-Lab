@@ -1,4 +1,5 @@
 const GAME_HOST_PERMISSION = "https://*.1win.com/*";
+const APP_ORIGINS = new Set(["http://localhost:3000", "https://mines-lab-nine.vercel.app"]);
 
 function sendResponse(sendResponse, response) {
   sendResponse(response);
@@ -39,8 +40,21 @@ async function detectGame() {
   return { status: "game-not-found" };
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+function isAllowedAppSender(sender) {
+  if (sender.id !== chrome.runtime.id || typeof sender.url !== "string") return false;
+  try {
+    return APP_ORIGINS.has(new URL(sender.url).origin);
+  } catch {
+    return false;
+  }
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || message.type !== "mines-lab:detect-game") return;
+  if (!isAllowedAppSender(sender)) {
+    sendResponse({ status: "error" });
+    return;
+  }
   void detectGame()
     .then((result) => sendResponse(sendResponse, result))
     .catch(() => sendResponse(sendResponse, { status: "error" }));

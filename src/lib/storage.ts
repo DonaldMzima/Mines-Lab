@@ -2,6 +2,8 @@ import { GAME_ID, parseGameRound, SUPPORTED_BOMB_COUNTS, TOTAL_TILES } from "@/l
 import type { GameRound } from "@/lib/mines";
 import { evaluateSignal } from "@/lib/signals/evaluator";
 import type { SignalEvaluation, SignalResult } from "@/lib/signals/types";
+import { isGameId } from "@/lib/game-registry";
+import type { GameId } from "@/lib/game-registry";
 
 const STORAGE_KEYS = {
   history: "mines-lab:history",
@@ -22,6 +24,7 @@ export interface StorageLoadResult<T> {
 }
 
 export interface AppPreferences {
+  activeGameId: GameId;
   mineCount: number;
   suggestedTileCount: number;
   theme: "dark" | "light";
@@ -33,6 +36,7 @@ export interface AppPreferences {
 }
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
+  activeGameId: "mines",
   mineCount: 3,
   suggestedTileCount: 3,
   theme: "dark",
@@ -154,12 +158,16 @@ function parsePreferences(value: unknown): AppPreferences {
     throw new Error("Saved settings are invalid.");
   }
   const connection = value.connection === undefined ? DEFAULT_PREFERENCES.connection : value.connection;
+  // Preferences saved before the game hub default safely to Mines.
+  const activeGameId = value.activeGameId === undefined ? "mines" : value.activeGameId;
+  if (!isGameId(activeGameId)) throw new Error("Saved active game is invalid.");
   if (!isRecord(connection) || typeof connection.autoConnect !== "boolean" ||
     typeof connection.staleAfterSeconds !== "number" || !Number.isInteger(connection.staleAfterSeconds) ||
     connection.staleAfterSeconds < 30 || connection.staleAfterSeconds > 3600) {
     throw new Error("Saved connection preferences are invalid. No credentials are stored.");
   }
   return {
+    activeGameId,
     mineCount: value.mineCount,
     suggestedTileCount: value.suggestedTileCount,
     theme: value.theme,

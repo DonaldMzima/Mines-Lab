@@ -3,7 +3,7 @@
   "name": "Mines Lab Game Presence Companion",
   "version": "0.1.0",
   "description": "Detects an explicitly permitted 1win Mines tab without reading game or account data.",
-  "permissions": ["tabs", "permissions"],
+  "permissions": ["tabs"],
   "host_permissions": [
     "http://localhost:3000/*",
     "https://mines-lab-nine.vercel.app/*"
@@ -24,12 +24,14 @@
         "https://mines-lab-nine.vercel.app/*"
       ],
       "js": ["app-bridge.js"],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "world": "ISOLATED"
     },
     {
       "matches": ["https://*.1win.com/*"],
       "js": ["game-probe.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "world": "ISOLATED"
     }
   ]
 }

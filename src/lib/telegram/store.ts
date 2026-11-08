@@ -1,11 +1,14 @@
 import type { GameRound } from "@/lib/mines";
 import type { SignalResult } from "@/lib/signals/types";
+import type { PenaltyMode } from "@/lib/penalty";
 
 export interface TelegramUserState {
   chatId: number;
   mineCount: 2 | 3 | 5 | 7;
   /** Independent from mineCount: how many experimental tiles to show. */
   suggestionCount: 1 | 2 | 3 | 4 | 5;
+  penaltyMode: PenaltyMode;
+  notificationsEnabled: boolean;
   selectedTiles: number[];
   latestSignal?: SignalResult;
   rounds: GameRound[];
@@ -42,6 +45,8 @@ export function getTelegramUser(chatId: number): TelegramUserState {
     chatId,
     mineCount: 3,
     suggestionCount: 3,
+    penaltyMode: "turbo",
+    notificationsEnabled: false,
     selectedTiles: [],
     rounds: [],
   };
@@ -67,14 +72,14 @@ export function allowTelegramAction(chatId: number, now = Date.now()): boolean {
 }
 
 export function rememberTelegramRound(round: GameRound): TelegramUserState[] {
-  const updated: TelegramUserState[] = [];
+  const notificationRecipients: TelegramUserState[] = [];
   for (const user of userStates.values()) {
     if (user.rounds.some((item) => item.id === round.id)) continue;
     const next = { ...user, rounds: [round, ...user.rounds].slice(0, MAX_ROUNDS_PER_USER) };
     userStates.set(user.chatId, next);
-    updated.push(next);
+    if (next.notificationsEnabled) notificationRecipients.push(next);
   }
-  return updated;
+  return notificationRecipients;
 }
 
 /** Process-local store only. Configure durable shared storage before multi-instance production deployment. */

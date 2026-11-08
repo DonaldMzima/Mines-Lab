@@ -5,6 +5,8 @@ import { answerTelegramCallback, editTelegramMessage, sendTelegramMessage } from
 import { allowTelegramAction, claimTelegramUpdate, getTelegramUser, releaseTelegramUpdate, rememberTelegramRound, updateTelegramUser } from "@/lib/telegram/store";
 import type { TelegramUserState } from "@/lib/telegram/store";
 import type { TelegramCallbackQuery, TelegramUpdate, InlineKeyboardMarkup } from "@/lib/telegram/types";
+import { formatPenaltyProbability, getPenaltySeriesAnalysis, PENALTY_RTP, PENALTY_TURBO_SCORE_PROBABILITY } from "@/lib/penalty";
+import type { PenaltyMode } from "@/lib/penalty";
 
 const mineCounts = [2, 3, 5, 7] as const;
 const suggestionCounts = [1, 2, 3, 4, 5] as const;
@@ -14,10 +16,41 @@ function controls(): InlineKeyboardMarkup {
     inline_keyboard: [
       [{ text: "Mine count", callback_data: "mines" }, { text: "Suggestions", callback_data: "suggestions" }],
       [{ text: "Experimental Suggestions", callback_data: "signal" }],
+      [{ text: "Penalty analysis", callback_data: "penalty" }],
       [{ text: "Completed Result", callback_data: "completed" }, { text: "History", callback_data: "history" }],
-      [{ text: "Status", callback_data: "status" }, { text: "Help", callback_data: "help" }],
+      [{ text: "Notifications", callback_data: "notifications" }, { text: "Status", callback_data: "status" }, { text: "Help", callback_data: "help" }],
     ],
   };
+}
+
+function penaltyControls(state: TelegramUserState): InlineKeyboardMarkup {
+  return { inline_keyboard: [[
+    { text: `${state.penaltyMode === "turbo" ? "✓ " : ""}Turbo`, callback_data: "penalty:turbo" },
+    { text: `${state.penaltyMode === "series" ? "✓ " : ""}Series`, callback_data: "penalty:series" },
+  ]] };
+}
+
+function penaltyText(mode: PenaltyMode): string {
+  if (mode === "turbo") {
+    return [
+      "PENALTY — TURBO ANALYSIS",
+      `RTP: ${formatPenaltyProbability(PENALTY_RTP)}`,
+      `Theoretical score probability: ${formatPenaltyProbability(PENALTY_TURBO_SCORE_PROBABILITY)}`,
+      `Theoretical save probability: ${formatPenaltyProbability(1 - PENALTY_TURBO_SCORE_PROBABILITY)}`,
+      "One shot. This does not predict a goalkeeper direction or an individual outcome.",
+      "No live Penalty data feed or verified Turbo payout schedule is connected.",
+    ].join("\n");
+  }
+  const steps = getPenaltySeriesAnalysis().map((step) =>
+    `Step ${step.step}: score ${formatPenaltyProbability(step.scoreProbability)} · cumulative ${formatPenaltyProbability(step.cumulativeScoreProbability)} · shown ${step.displayedMultiplier.toFixed(2)}×`,
+  );
+  return [
+    "PENALTY — SERIES ANALYSIS",
+    `RTP: ${formatPenaltyProbability(PENALTY_RTP)}`,
+    ...steps,
+    "Cumulative probability is the product of the documented conditional scoring probabilities.",
+    "Displayed multipliers do not alone verify expected return or cash-out rules. No direction prediction or live data feed is available.",
+  ].join("\n");
 }
 
 function mineCountControls(state: TelegramUserState): InlineKeyboardMarkup {
@@ -58,10 +91,12 @@ function statusText(chatId: number): string {
     "Telegram bot: online",
     "Browser game detection: unavailable to the server-side bot",
     "1win live connection: unavailable",
+    "Penalty: theoretical probability analysis available; no live data",
     "Data source: unavailable",
     "Bot storage: separate from browser history",
     `Mine count: ${state.mineCount}`,
     `Suggestion count: ${state.suggestionCount}`,
+    `Completed-round notifications: ${state.notificationsEnabled ? "enabled" : "disabled"}`,
     `Last completed result: ${last ? `${last.id} · ${last.minePositions.length} mines` : "none received"}`,
   ].join("\n");
 }
@@ -116,13 +151,24 @@ async function handleCommand(chatId: number, text: string): Promise<void> {
     return;
   }
   if (command === "/help") {
-    await sendTelegramMessage(chatId, "Commands:\n/start — open controls\n/help — show this help\n/status — bot and data status\n/signal — experimental random suggestions\n/result — latest completed result\n/history — bot-known completed results\n\nUse Mine count and Suggestions to configure the board. These settings are independent.", controls());
+    await sendTelegramMessage(chatId, "Commands:\n/start — open controls\n/help — show this help\n/status — bot and data status\n/signal — experimental random suggestions\n/penalty — theoretical Penalty analysis\n/result — latest completed result\n/history — bot-known completed results\n/notifications — toggle completed-round notifications\n\nUse Mine count and Suggestions to configure the board. These settings are independent.", controls());
     return;
   }
   if (command === "/status") { await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
   if (command === "/signal") { await sendSignal(chatId); return; }
+  if (command === "/penalty") {
+    const state = getTelegramUser(chatId);
+    await sendTelegramMessage(chatId, penaltyText(state.penaltyMode), penaltyControls(state));
+    return;
+  }
   if (command === "/result" || command === "/round") { await sendTelegramMessage(chatId, completedRoundText(chatId), controls()); return; }
   if (command === "/history") { await sendTelegramMessage(chatId, historyText(chatId), controls()); return; }
+  if (command === "/notifications") {
+    const state = getTelegramUser(chatId);
+    const next = updateTelegramUser(chatId, { notificationsEnabled: !state.notificationsEnabled });
+    await sendTelegramMessage(chatId, `Completed-round notifications ${next.notificationsEnabled ? "enabled" : "disabled"}. Notifications are available only when an authorized server-side data source exists.`, controls());
+    return;
+  }
   await sendTelegramMessage(chatId, "I don’t recognize that command. Send /help for available commands.", controls());
 }
 
@@ -141,10 +187,30 @@ async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
     return;
   }
   if (data === "signal") { await answerTelegramCallback(callback.id); await sendSignal(chatId); return; }
+  if (data === "penalty") {
+    const state = getTelegramUser(chatId);
+    await answerTelegramCallback(callback.id);
+    await sendTelegramMessage(chatId, penaltyText(state.penaltyMode), penaltyControls(state));
+    return;
+  }
   if (data === "completed") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, completedRoundText(chatId), controls()); return; }
+  if (data === "notifications") {
+    const state = getTelegramUser(chatId);
+    const next = updateTelegramUser(chatId, { notificationsEnabled: !state.notificationsEnabled });
+    await answerTelegramCallback(callback.id, `Notifications ${next.notificationsEnabled ? "enabled" : "disabled"}.`);
+    await sendTelegramMessage(chatId, `Completed-round notifications ${next.notificationsEnabled ? "enabled" : "disabled"}.`, controls());
+    return;
+  }
   if (data === "status") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
   if (data === "help") { await answerTelegramCallback(callback.id); await handleCommand(chatId, "/help"); return; }
   if (data === "history") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, historyText(chatId), controls()); return; }
+  const penaltyMode = /^penalty:(turbo|series)$/.exec(data);
+  if (penaltyMode) {
+    const next = updateTelegramUser(chatId, { penaltyMode: penaltyMode[1] as PenaltyMode });
+    await answerTelegramCallback(callback.id, `${penaltyMode[1]} analysis selected.`);
+    await sendTelegramMessage(chatId, penaltyText(next.penaltyMode), penaltyControls(next));
+    return;
+  }
   const count = /^mines:(2|3|5|7)$/.exec(data);
   if (count) {
     updateTelegramUser(chatId, { mineCount: Number(count[1]) as 2 | 3 | 5 | 7, selectedTiles: [] });
