@@ -13,8 +13,9 @@ function controls(): InlineKeyboardMarkup {
   return {
     inline_keyboard: [
       [{ text: "Mine count", callback_data: "mines" }, { text: "Suggestions", callback_data: "suggestions" }],
-      [{ text: "Generate Signal", callback_data: "signal" }, { text: "Status", callback_data: "status" }],
-      [{ text: "History", callback_data: "history" }, { text: "Help", callback_data: "help" }],
+      [{ text: "Experimental Suggestions", callback_data: "signal" }],
+      [{ text: "Completed Result", callback_data: "completed" }, { text: "History", callback_data: "history" }],
+      [{ text: "Status", callback_data: "status" }, { text: "Help", callback_data: "help" }],
     ],
   };
 }
@@ -71,6 +72,32 @@ function historyText(chatId: number): string {
   return ["Recent completed results", ...rounds.slice(0, 5).map((round) => `${round.id} · ${round.minePositions.length} mines · ${round.result === "unknown" ? "finished" : round.result}`)].join("\n");
 }
 
+function sourceText(round: GameRound): string {
+  if (round.source === "demo") return "Local simulation";
+  if (round.source === "provider" || round.source === "live") return "Provider adapter record";
+  if (round.source === "manual") return "User-entered record";
+  return "User-imported record";
+}
+
+function completedRoundText(chatId: number): string {
+  const round = getTelegramUser(chatId).rounds[0];
+  if (!round) return "No confirmed completed-round result is available.";
+  const positions = round.minePositions.map(tileIndexToNumber).sort((first, second) => first - second);
+  return [
+    "MINES LAB — COMPLETED ROUND",
+    "",
+    `Round: ${round.id}`,
+    `Mode: ${round.mode ?? "unknown"}`,
+    `Mines: ${round.bombCount}`,
+    `Result: ${round.result === "unknown" ? "Finished" : round.result.replace("_", " ")}`,
+    `Received: ${new Date(round.timestamp).toISOString()}`,
+    "",
+    `Bomb positions: ${positions.map((position) => String(position).padStart(2, "0")).join(", ")}`,
+    `Source: ${sourceText(round)}`,
+    "Verification: structurally validated; provider origin is not independently verified by this bot.",
+  ].join("\n");
+}
+
 async function sendSignal(chatId: number): Promise<void> {
   const state = getTelegramUser(chatId);
   const signal = generateSignal({
@@ -79,7 +106,7 @@ async function sendSignal(chatId: number): Promise<void> {
     suggestedTileCount: state.suggestionCount,
   });
   const next = updateTelegramUser(chatId, { latestSignal: signal, selectedTiles: [] });
-  await sendTelegramMessage(chatId, `Experimental random suggestion: ${signal.suggestedTiles.length} tile${signal.suggestedTiles.length === 1 ? "" : "s"} for ${signal.mineCount} mines. Purple ✳ tiles are not verified safe and do not predict future mine positions.`, board(next));
+  await sendTelegramMessage(chatId, `Experimental Suggestions: ${signal.suggestedTiles.length} tile${signal.suggestedTiles.length === 1 ? "" : "s"} for ${signal.mineCount} mines. Purple ✳ tiles are not verified safe and do not predict future mine positions.`, board(next));
 }
 
 async function handleCommand(chatId: number, text: string): Promise<void> {
@@ -89,11 +116,12 @@ async function handleCommand(chatId: number, text: string): Promise<void> {
     return;
   }
   if (command === "/help") {
-    await sendTelegramMessage(chatId, "Commands:\n/start — open controls\n/help — show this help\n/status — bot and data status\n/signal — experimental random suggestion\n/history — bot-known completed results\n\nUse Mine count and Suggestions to configure the board. These settings are independent.", controls());
+    await sendTelegramMessage(chatId, "Commands:\n/start — open controls\n/help — show this help\n/status — bot and data status\n/signal — experimental random suggestions\n/result — latest completed result\n/history — bot-known completed results\n\nUse Mine count and Suggestions to configure the board. These settings are independent.", controls());
     return;
   }
   if (command === "/status") { await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
   if (command === "/signal") { await sendSignal(chatId); return; }
+  if (command === "/result" || command === "/round") { await sendTelegramMessage(chatId, completedRoundText(chatId), controls()); return; }
   if (command === "/history") { await sendTelegramMessage(chatId, historyText(chatId), controls()); return; }
   await sendTelegramMessage(chatId, "I don’t recognize that command. Send /help for available commands.", controls());
 }
@@ -113,6 +141,7 @@ async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
     return;
   }
   if (data === "signal") { await answerTelegramCallback(callback.id); await sendSignal(chatId); return; }
+  if (data === "completed") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, completedRoundText(chatId), controls()); return; }
   if (data === "status") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, statusText(chatId), controls()); return; }
   if (data === "help") { await answerTelegramCallback(callback.id); await handleCommand(chatId, "/help"); return; }
   if (data === "history") { await answerTelegramCallback(callback.id); await sendTelegramMessage(chatId, historyText(chatId), controls()); return; }

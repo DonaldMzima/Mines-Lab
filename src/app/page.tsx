@@ -63,7 +63,7 @@ export default function Home() {
               const safe = round?.status === "completed" && selected && !mine;
               const state = mine ? "is-mine" : safe ? "is-safe" : selected ? "is-selected" : "";
               const description = mine ? "confirmed mine" : safe ? "confirmed safe selection" : selected ? "selected" : "unknown";
-              return <div key={index} className={`simple-tile ${state}`} role="gridcell" aria-label={`Tile ${tileIndexToNumber(index)}, ${description}`}>{String(tileIndexToNumber(index)).padStart(2, "0")}</div>;
+              return <div key={index} className={`simple-tile ${state}`} role="gridcell" aria-label={`Tile ${tileIndexToNumber(index)}, ${description}`}>{mine ? "💣" : String(tileIndexToNumber(index)).padStart(2, "0")}</div>;
             })}
           </div>
         </section>
