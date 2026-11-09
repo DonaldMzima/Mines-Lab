@@ -1,3 +1,8 @@
+> Retired reference sources: the application now uses native TypeScript analysis.
+> These files remain temporarily because production-build verification is blocked.
+> The historical service setup below is not used by current application callers.
+> See [migration status](../docs/NATIVE_ANALYSIS.md).
+
 # Mines Lab Python analysis
 
 Python 3.10+. The fifteen game engines form an offline reference/evaluation CLI.

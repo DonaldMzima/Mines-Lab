@@ -1,17 +1,30 @@
+import { periodRange } from "./dates";
 import { API_FOOTBALL_DAILY_REQUEST_LIMIT, cacheJson, cachedJson, reserveApiFootballRequest, saveForecast, updateForecastResult } from "./storage";
-import { pythonServiceConfigured, validateProviderForecast } from "./python-client";
+import { validateProviderForecast } from "./analysis";
 import type { FootballCompetition, FootballFixture, FootballFixtureDetail, FootballMarket, FootballPeriod, FootballStatisticsResult, FootballTeamStatistic } from "./types";
 
 const DEFAULT_API_ROOT = "https://v3.football.api-sports.io";
 const PROVIDER_VERSION = "api-football-v3";
 const CACHE_PREFIX = "api-football:";
 
-export class FootballProviderError extends Error {
-  constructor(message: string, readonly status: number, readonly unavailableData = false) {
-    super(message);
-    this.name = "FootballProviderError";
-  }
+/** The account's reported free seasons, configurable when its entitlement changes. */
+export function assertHistoricalSeason(season: number): void {
+  const allowed = (process.env.API_FOOTBALL_FREE_SEASONS ?? "2022,2023,2024").split(",").map(Number).filter(Number.isSafeInteger);
+  if (!Number.isSafeInteger(season) || !allowed.includes(season)) throw new FootballProviderError(`API-Football free-plan season restriction. Permitted archive seasons: ${allowed.join(", ")}. Current fixtures are not replaced with archive matches.`, 403, true, "season_restricted");
 }
+
+export async function getHistoricalFootballFixtures(competitionId: number, season: number, from: string, to: string): Promise<FootballFixture[]> {
+  assertHistoricalSeason(season);
+  const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+  if (!Number.isSafeInteger(competitionId) || competitionId <= 0 || competitionId >= 1_000_000_000 || !validDate(from) || !validDate(to) || from > to || Date.parse(to) - Date.parse(from) > 31 * 86_400_000 || Date.parse(to) >= Date.now()) throw new FootballProviderError("Choose an explicit historical league, season and past date range of at most 31 days.", 400, false, "invalid_request");
+  const payload = await providerGet("/fixtures", { league: String(competitionId), season: String(season), from, to, timezone: "Africa/Johannesburg" }, `history:${competitionId}:${season}:${from}:${to}`, 86_400);
+  const fixtures = payload.response.map(parseApiFootballFixture);
+  if (fixtures.some(fixture => fixture.competition.id !== competitionId || fixture.competition.season !== season)) throw new FootballProviderError("API-Football returned records outside the requested historical league or season.", 502);
+  return fixtures;
+}
+
+import { FootballProviderError } from "./errors";
+export { FootballProviderError } from "./errors";
 
 interface ApiFootballEnvelope {
   response: unknown[];
@@ -26,7 +39,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function apiConfig(): { root: string; key: string } {
   const key = process.env.API_FOOTBALL_KEY;
   if (!key || key.length > 512 || /\s/.test(key)) {
-    throw new FootballProviderError("Configure API_FOOTBALL_KEY on the server to load football data.", 503);
+    throw new FootballProviderError("Configure API_FOOTBALL_KEY on the server to load football data.", 503, false, "configuration_required");
   }
   const rawRoot = process.env.API_FOOTBALL_BASE_URL ?? DEFAULT_API_ROOT;
   let url: URL;
@@ -54,9 +67,13 @@ export function parseApiFootballEnvelope(value: unknown): ApiFootballEnvelope {
     throw new FootballProviderError("API-Football returned a malformed response envelope.", 502);
   }
   const errors = responseErrors(value.errors);
+  const errorText = errors.join("; ");
+  if (/free plans.*season|access to this season/i.test(errorText)) throw new FootballProviderError(`API-Football season restriction: ${errorText}. Current fixtures use football-data.org; historical seasons are never substituted.`, 403, true, "season_restricted");
+  if (/api.?key|token|authentication/i.test(errorText)) throw new FootballProviderError("API-Football rejected the API key. Check API_FOOTBALL_KEY.", 401, false, "invalid_api_key");
+  if (/daily|requests per day/i.test(errorText)) throw new FootballProviderError("API-Football daily quota exhausted. Cached data remains available; retry after 00:00 UTC.", 429, false, "quota_exhausted");
   if (errors.length > 0) {
     if (errors.some((error) => /rate.?limit|too many requests|daily request|requests per day/i.test(error))) {
-      throw new FootballProviderError("API-Football request quota or rate limit was reached. Cached results remain available.", 429);
+      throw new FootballProviderError("API-Football rate limit was reached. Cached results remain available.", 429, false, "rate_limited");
     }
     throw new FootballProviderError(
       `API-Football data is unavailable: ${errors.slice(0, 2).join("; ")}.`,
@@ -79,13 +96,16 @@ export function parseApiFootballEnvelope(value: unknown): ApiFootballEnvelope {
 }
 
 async function providerGet(path: string, params: Record<string, string>, cacheKey: string, ttlSeconds: number): Promise<ApiFootballEnvelope> {
+  if (params.season) assertHistoricalSeason(Number(params.season));
+  const restricted = await cachedJson<{ message: string }>(CACHE_PREFIX + `restricted:${path}:${params.season ?? params.id ?? params.fixture ?? "unknown"}`);
+  if (restricted) throw new FootballProviderError(restricted.message, 403, true, "season_restricted");
   const cached = await cachedJson<unknown>(CACHE_PREFIX + cacheKey);
   if (cached !== null) return parseApiFootballEnvelope(cached);
 
   const config = apiConfig();
   const quota = await reserveApiFootballRequest();
   if (!quota.allowed) {
-    throw new FootballProviderError(`The local API-Football request budget reached ${API_FOOTBALL_DAILY_REQUEST_LIMIT} calls for today. Cached data remains available; try again after 00:00 UTC.`, 429);
+    throw new FootballProviderError(`The local API-Football request budget reached ${API_FOOTBALL_DAILY_REQUEST_LIMIT} calls for today. Cached data remains available; try again after 00:00 UTC.`, 429, false, "quota_exhausted");
   }
 
   const url = new URL(path, `${config.root}/`);
@@ -103,14 +123,18 @@ async function providerGet(path: string, params: Record<string, string>, cacheKe
   }
   if (!response.ok) {
     if (response.status === 429) throw new FootballProviderError("API-Football rate limit reached. Cached results remain available; retry later.", 429);
-    if (response.status === 401 || response.status === 403) {
-      throw new FootballProviderError("API-Football rejected the configured key or this endpoint is outside the account plan.", 502);
-    }
+    if (response.status === 401) throw new FootballProviderError("API-Football rejected the configured key.", 401, false, "invalid_api_key");
+    if (response.status === 403) throw new FootballProviderError("API-Football denied access to this endpoint or plan.", 403, true, "competition_unavailable");
     throw new FootballProviderError(`API-Football request failed (HTTP ${response.status}).`, 502);
   }
   let payload: unknown;
   try { payload = await response.json(); } catch { throw new FootballProviderError("API-Football returned invalid JSON.", 502); }
-  const envelope = parseApiFootballEnvelope(payload);
+  let envelope: ApiFootballEnvelope;
+  try { envelope = parseApiFootballEnvelope(payload); }
+  catch (error) {
+    if (error instanceof FootballProviderError && error.code === "season_restricted") await cacheJson(CACHE_PREFIX + `restricted:${path}:${params.season ?? params.id ?? params.fixture ?? "unknown"}`, { message: error.message }, 86_400);
+    throw error;
+  }
   await cacheJson(CACHE_PREFIX + cacheKey, payload, ttlSeconds);
   return envelope;
 }
@@ -121,30 +145,6 @@ function readName(value: unknown): string | null {
 
 function readPositiveInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
-}
-
-function timezoneDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-}
-
-function dateOffset(dateString: string, days: number): string {
-  const date = new Date(`${dateString}T12:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return timezoneDate(date);
-}
-
-function periodRange(period: FootballPeriod): { start: string; end: string } {
-  const today = timezoneDate(new Date());
-  if (period === "today") return { start: today, end: today };
-  if (period === "tomorrow") {
-    const tomorrow = dateOffset(today, 1);
-    return { start: tomorrow, end: tomorrow };
-  }
-  if (period === "week" || period === "next7") return { start: today, end: dateOffset(today, 6) };
-  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Johannesburg", weekday: "short" }).format(new Date(`${today}T12:00:00.000Z`));
-  const daysUntilSaturday = (6 - ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday) + 7) % 7;
-  const start = dateOffset(today, daysUntilSaturday);
-  return { start, end: dateOffset(start, 1) };
 }
 
 export function parseApiFootballCompetition(value: unknown): FootballCompetition | null {
@@ -178,7 +178,7 @@ function fixtureIsCompleted(status: string): boolean {
 export function parseApiFootballFixture(value: unknown): FootballFixture {
   if (!isRecord(value) || !isRecord(value.fixture) || !isRecord(value.teams) ||
       !isRecord(value.teams.home) || !isRecord(value.teams.away) || !isRecord(value.league) ||
-      !isRecord(value.status) || !isRecord(value.goals)) {
+      !isRecord(value.fixture.status) || !isRecord(value.goals)) {
     throw new FootballProviderError("API-Football returned a malformed fixture.", 502);
   }
   const id = readPositiveInteger(value.fixture.id);
@@ -187,8 +187,8 @@ export function parseApiFootballFixture(value: unknown): FootballFixture {
   const awayTeam = readName(value.teams.away.name);
   const competitionId = readPositiveInteger(value.league.id);
   const competitionName = readName(value.league.name);
-  const status = readName(value.status.short);
-  const statusName = readName(value.status.long);
+  const status = readName(value.fixture.status.short);
+  const statusName = readName(value.fixture.status.long);
   if (!id || !Number.isFinite(Date.parse(kickoff)) || !homeTeam || !awayTeam || !competitionId || !competitionName || !status || !statusName) {
     throw new FootballProviderError("API-Football returned a fixture with missing or invalid identity, teams, kickoff, league, or status.", 502);
   }
@@ -210,6 +210,7 @@ export function parseApiFootballFixture(value: unknown): FootballFixture {
     predictable: null,
     isUpcoming: ["NS", "TBD"].includes(status.toUpperCase()) && Date.parse(kickoffDate) > Date.now(),
     isCompleted: isCompleted && homeScore !== null && awayScore !== null,
+    source: "API-Football",
   };
 }
 
@@ -325,19 +326,19 @@ export async function getFootballFixtureDetail(fixtureId: number): Promise<Footb
         modelSummary = markets.length
           ? "API-Football returned tied top percentages, so there is no single supported outcome."
           : "Prediction percentages are unavailable or invalid for this fixture in the current API-Football coverage.";
-      } else if (pythonServiceConfigured()) {
+      } else {
         try {
-          const validation = await validateProviderForecast({
+          const validation = validateProviderForecast({
             fixtureId,
             kickoff: fixture.kickoff,
             predictable: true,
             markets,
-          });
+          }, new Date(), 2); // Retain the provider adapter's existing two-point rounding tolerance.
           modelVersion = `${PROVIDER_VERSION}+${validation.modelVersion}`;
           if (validation.status !== "validated" || !validation.primaryOutcome) {
             markets = [];
             primary = null;
-            modelSummary = validation.message || "The hosted Python service did not validate this provider forecast.";
+            modelSummary = validation.message || "Local validation did not validate this provider forecast.";
           } else {
             markets = validation.markets;
             primary = validation.primaryOutcome;
@@ -346,10 +347,8 @@ export async function getFootballFixtureDetail(fixtureId: number): Promise<Footb
         } catch (error) {
           markets = [];
           primary = null;
-          modelSummary = `Prediction unavailable because configured Python validation failed: ${error instanceof Error ? error.message : "service error"}`;
+          modelSummary = `Prediction unavailable because local validation failed: ${error instanceof Error ? error.message : "validation error"}`;
         }
-      } else {
-        modelSummary = "Native API-Football prediction percentages passed local schema checks. No independent accuracy is claimed; hosted Python validation is not configured.";
       }
       if (primary) {
         generatedAt = new Date().toISOString();
@@ -382,7 +381,7 @@ export async function getFootballFixtureDetail(fixtureId: number): Promise<Footb
     markets,
     primaryOutcome: primary,
     model: {
-      name: "API-Football predictions" + (pythonServiceConfigured() ? " + hosted Python validation" : ""),
+      name: "API-Football predictions",
       version: modelVersion,
       status: primary ? "provider-model" : "unavailable",
       generatedAt,

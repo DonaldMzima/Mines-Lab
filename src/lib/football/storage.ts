@@ -68,14 +68,15 @@ function parseTicket(value: unknown): FootballTicket {
   for (const selection of ticket.selections) {
     if (!selection || typeof selection !== "object") throw new FootballStorageError("A saved ticket selection is malformed.");
     const oddsSource = String(selection.oddsSource);
+    if (oddsSource === "The Odds API" && (typeof selection.providerEventId !== "string" || !selection.providerEventId || typeof selection.providerMarketKey !== "string" || selection.oddsObservedAt === null || selection.probabilityBasis !== "market-implied" || typeof selection.estimatedProbability !== "number" || !Number.isFinite(selection.estimatedProbability) || selection.estimatedProbability <= 0 || selection.estimatedProbability >= 1)) throw new FootballStorageError("A saved provider-priced ticket is malformed.");
     if (typeof selection.fixtureId !== "number" || !Number.isSafeInteger(selection.fixtureId) || selection.fixtureId <= 0 ||
         typeof selection.kickoff !== "string" || !Number.isFinite(Date.parse(selection.kickoff)) ||
         typeof selection.homeTeam !== "string" || typeof selection.awayTeam !== "string" ||
         typeof selection.competition !== "string" || typeof selection.market !== "string" || typeof selection.selection !== "string" ||
         typeof selection.decimalOdds !== "number" || !Number.isFinite(selection.decimalOdds) || selection.decimalOdds < 1.01 ||
-        !["manual", "legacy-provider", "Sportmonks"].includes(oddsSource) ||
-        (oddsSource !== "manual" && (typeof selection.providerOddId !== "number" || selection.providerOddId <= 0)) ||
-        (oddsSource === "manual" && selection.providerOddId !== null) ||
+        !["manual", "legacy-provider", "Sportmonks", "The Odds API"].includes(oddsSource) ||
+        (["legacy-provider", "Sportmonks"].includes(oddsSource) && (typeof selection.providerOddId !== "number" || selection.providerOddId <= 0)) ||
+        (["manual", "The Odds API"].includes(oddsSource) && selection.providerOddId !== null) ||
         typeof selection.bookmaker !== "string" ||
         (selection.oddsObservedAt !== null && (typeof selection.oddsObservedAt !== "string" || !Number.isFinite(Date.parse(selection.oddsObservedAt))))) {
       throw new FootballStorageError("A saved ticket selection is malformed.");
@@ -88,6 +89,24 @@ function parseTicket(value: unknown): FootballTicket {
   return { ...ticket, selections } as FootballTicket;
 }
 
+/** Atomic, conservative monthly credits and per-minute request budget. */
+export async function reserveOddsCredits(account: string, cost: number, now = new Date()): Promise<boolean> {
+  if (!/^[a-f0-9]{16}$/.test(account) || !Number.isSafeInteger(cost) || cost < 0 || cost > 10) throw new FootballStorageError("Invalid odds credit reservation.");
+  const script = `
+    local used = tonumber(redis.call('GET', KEYS[1]) or '0')
+    local minute = tonumber(redis.call('GET', KEYS[2]) or '0')
+    if used + tonumber(ARGV[1]) > 400 or minute >= 24 then return 0 end
+    redis.call('INCRBY', KEYS[1], ARGV[1])
+    redis.call('EXPIRE', KEYS[1], 5356800)
+    redis.call('INCR', KEYS[2])
+    redis.call('EXPIRE', KEYS[2], 120)
+    return 1
+  `;
+  const result = await command(["EVAL", script, 2, key("odds-api", account, "month", now.toISOString().slice(0, 7)), key("odds-api", account, "minute", now.toISOString().slice(0, 16)), cost]);
+  if (result !== 0 && result !== 1) throw new FootballStorageError("Invalid odds quota response.");
+  return result === 1;
+}
+
 export async function cachedJson<T>(cacheKey: string): Promise<T | null> {
   const value = await command(["GET", key("cache", cacheKey)]);
   if (value === null) return null;
@@ -97,6 +116,21 @@ export async function cachedJson<T>(cacheKey: string): Promise<T | null> {
 
 export async function cacheJson(cacheKey: string, value: unknown, seconds: number): Promise<void> {
   await command(["SET", key("cache", cacheKey), JSON.stringify(value), "EX", seconds]);
+}
+
+/** Shared minute budget for the free fixture source (10/min; keep two in reserve). */
+export async function reserveFootballDataRequest(now = new Date()): Promise<boolean> {
+  const minute = now.toISOString().slice(0, 16);
+  const script = `
+    local count = tonumber(redis.call('GET', KEYS[1]) or '0')
+    if count >= 8 then return 0 end
+    count = redis.call('INCR', KEYS[1])
+    if count == 1 then redis.call('EXPIRE', KEYS[1], 120) end
+    return 1
+  `;
+  const result = await command(["EVAL", script, 1, key("football-data", "requests", minute)]);
+  if (result !== 0 && result !== 1) throw new FootballStorageError("Football fixture quota storage returned an invalid result.");
+  return result === 1;
 }
 
 export async function reserveApiFootballRequest(now = new Date()): Promise<{ allowed: boolean; count: number }> {
@@ -227,10 +261,24 @@ export async function consumeTelegramLink(code: string, chatId: number): Promise
     if not browserId then return 0 end
     redis.call('DEL', KEYS[1])
     redis.call('SET', KEYS[2], browserId)
+    redis.call('HSET', KEYS[3], browserId, ARGV[1])
     return 1
   `;
-  const result = await command(["EVAL", script, 2, key("link-code", code), key("telegram-link", String(chatId))]);
+  const result = await command(["EVAL", script, 3, key("link-code", code), key("telegram-link", String(chatId)), key("browser-telegram-links"), String(chatId)]);
   return result === 1;
+}
+
+export async function getLinkedTelegramChatId(browserId: string): Promise<number | null> {
+  if (!validBrowserId(browserId)) throw new FootballStorageError("Invalid browser identity.");
+  const raw = await command(["HGET", key("browser-telegram-links"), browserId]);
+  if (raw === null) return null;
+  const chatId = Number(raw);
+  if (!Number.isSafeInteger(chatId) || chatId <= 0) throw new FootballStorageError("Invalid private Telegram link.");
+  return await getLinkedBrowserId(chatId) === browserId ? chatId : null;
+}
+
+export async function claimTicketShare(browserId: string, ticketId: string): Promise<boolean> {
+  return await command(["SET", key("ticket-share", browserId, ticketId), "1", "EX", 60, "NX"]) === "OK";
 }
 
 export async function getLinkedBrowserId(chatId: number): Promise<string | null> {

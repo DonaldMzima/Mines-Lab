@@ -1,3 +1,5 @@
+import { wilsonInterval } from "./evaluation";
+export { wilsonInterval } from "./evaluation";
 import type { GameId } from "../game-registry";
 import { completedTimestamp, configured, number, percent, record, unavailable } from "./core";
 import type { GameAnalyzer, JsonValue } from "./types";
@@ -17,15 +19,6 @@ export function parseCrashHistory(value: unknown): CrashHistoryRecord[] {
     const source: CrashHistoryRecord["source"] = rawSource === "manual" ? "manual" : "import";
     return { roundId, completedAt, multiplier: number(r.multiplier, "Completed multiplier", 1, 1e9), source };
   }).sort((a, b) => Date.parse(a.completedAt) - Date.parse(b.completedAt));
-}
-export function wilsonInterval(successes: number, n: number): [number, number] | null {
-  if (!n) return null;
-  const z = 1.959963984540054;
-  const p = successes / n;
-  const den = 1 + z * z / n;
-  const center = (p + z * z / (2 * n)) / den;
-  const margin = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den;
-  return [Math.max(0, center - margin), Math.min(1, center + margin)];
 }
 export const CRASH_PROFILES: Record<Extract<GameId, "lucky-jet" | "rocket-queen" | "rocket-x" | "aviator" | "speed-cash">, { label: string; reference: string; verifiedMechanics: string }> = {
   "lucky-jet": { label: "Lucky Jet", reference: "https://1win.com/", verifiedMechanics: "Rising multiplier crash game; exact multiplier law and payout limits unverified" },

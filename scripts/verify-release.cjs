@@ -63,7 +63,7 @@ async function runReleaseVerification(options = {}) {
   try {
     const { analyzeGame, getDefaultInput } = require(path.join(projectRoot, "src/lib/analysis/index.ts"));
     const { GAME_IDS } = require(path.join(projectRoot, "src/lib/game-registry.ts"));
-    const fixtures = JSON.parse(fs.readFileSync(path.join(projectRoot, "python/fixtures/analysis-cases.json"), "utf8"));
+    const fixtures = JSON.parse(fs.readFileSync(path.join(projectRoot, "src/lib/analysis/fixtures/analysis-cases.json"), "utf8"));
     assert.equal(fixtures.cases.length, 15, "Release fixtures must cover all fifteen games.");
     assert.deepEqual([...new Set(fixtures.cases.map(item => item.gameId))].sort(), [...GAME_IDS].sort());
 

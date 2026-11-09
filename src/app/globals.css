@@ -767,10 +767,41 @@ details.guide-status-list > summary { color: #c3d1ec; cursor: pointer; }
 .football-link-code { display: grid; gap: 4px; padding: 12px; border: 1px dashed #6e80ae; border-radius: 8px; color: #dce5f3 !important; font-family: var(--font-geist-mono), monospace; overflow-wrap: anywhere; }
 .football-link-code small { color: #9eacc2; font-family: inherit; }
 .football-workspace a { color: #b8c7ff; }
+.football-periods, .football-league-actions, .football-fixture-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.football-periods { margin-bottom: 20px; }
+.football-periods button { flex: 1; min-width: 90px; }
+.football-league-picker { border: 1px solid #2e3e58; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+.football-league-picker summary { cursor: pointer; font-weight: 650; }
+.football-league-picker summary span { margin-left: 12px; color: #9eacc2; font-size: 13px; font-weight: 400; }
+.football-league-actions { margin: 16px 0; }
+.football-check { display: flex; gap: 8px; align-items: center; color: #b6c4d9; font-size: 13px; }
+.football-league-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; border: 0; padding: 0; margin: 16px 0; }
+.football-league-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid #2e3e58; border-radius: 8px; cursor: pointer; }
+.football-league-option:has(input:checked) { border-color: #8a9fef; background: #1b2940; }
+.football-league-option:has(input:disabled) { opacity: .65; cursor: not-allowed; }
+.football-league-option span { display: grid; gap: 4px; min-width: 0; }
+.football-league-option small { color: #9eacc2; line-height: 1.5; }
+.football-league-option input, .football-check input { width: 18px; height: 18px; flex: 0 0 18px; accent-color: #9dafef; margin-top: 2px; }
+.football-workspace :is(button, input, select, summary):focus-visible { outline: 2px solid #a9b9ff; outline-offset: 4px; }
+.football-fixture-actions { flex-shrink: 0; }
+.football-ticket-form { min-width: 0; padding: 0; border: 0; }
+.football-ticket-inputs { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.football-generate-button { width: 100%; min-height: 48px; margin-top: 12px; }
+.football-proposed-legs { display: grid; gap: 12px; padding-left: 24px; }
+.football-proposed-legs li { padding: 16px; border: 1px solid #2e3e58; border-radius: 10px; }
+.football-proposed-legs li div { display: grid; gap: 6px; }
+.football-proposed-legs small { display: block; color: #aebbd0; line-height: 1.5; }
+.football-generated-ticket .football-ticket-estimate { padding: 18px; margin: 16px 0; border-radius: 10px; background: #17263a; }
+.football-saved-ticket { padding: 14px 0; border-bottom: 1px solid #2e3e58; }
+.football-saved-ticket summary, .football-ticket-workspace > details > summary { cursor: pointer; font-weight: 600; }
+.football-advanced > .football-workspace { padding: 20px 0 0; }
 .football-workspace :is(button, select, input):disabled { opacity: .6; cursor: not-allowed; }
 
 @media (max-width: 640px) {
   .football-panel { padding: 15px; }
   .football-fixture { align-items: flex-start; flex-direction: column; }
   .football-fixture button { width: 100%; }
+  .football-fixture-actions { width: 100%; }
+  .football-fixture-actions button { flex: 1; width: auto; }
+  .football-league-options { grid-template-columns: 1fr; }
 }

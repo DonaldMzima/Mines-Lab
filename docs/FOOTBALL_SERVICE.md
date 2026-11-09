@@ -1,8 +1,13 @@
-# Football integration: API-Football by API-Sports
+# Football integration
+
+Current fixtures and delayed results now use football-data.org. Configure
+`FOOTBALL_DATA_API_TOKEN`; see [current sources, filters and limitations](FOOTBALL_DATA.md).
+API-Football remains the explicit historical adapter. The API-Football-specific
+configuration and retained forecast storage below do not imply current-season access.
 
 The adapter calls the documented API-Football v3 REST API:
 [API-Football documentation](https://www.api-football.com/documentation-v3).
-It supports current leagues, date-range fixtures and scores, on-demand fixture
+For explicitly permitted archive seasons it supports date-range fixtures and scores, on-demand fixture
 statistics, and API-Football's own predictions endpoint when the account plan
 provides them.
 
@@ -23,15 +28,8 @@ Server-only:
   shared cache, daily request counter, forecasts, tickets and Telegram links.
 - `FOOTBALL_STORAGE_NAMESPACE`: optional Redis key prefix.
 
-Optional:
-
-- `FOOTBALL_MODEL_API_URL` and `FOOTBALL_MODEL_API_TOKEN`: when both are
-  configured, the hosted FastAPI service validates provider predictions and
-  enables retrospective forecast evaluation. If neither is configured,
-  validated API-Football percentages can still be displayed and evaluation is
-  explicitly unavailable. If only one value is configured or a configured
-  service fails, that forecast is shown as unavailable rather than bypassing
-  the configured validation.
+Validation and retrospective evaluation run locally in the shared TypeScript
+module `src/lib/football/analysis.ts`. No model-service URL or token is required.
 
 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `APP_BASE_URL`, and
 `TELEGRAM_STORE_NAMESPACE` remain the separate existing bot settings. Never
@@ -49,18 +47,18 @@ not visible to this counter; API-Sports may therefore reject a request sooner.
 
 Cache durations: current leagues 24 hours, fixtures one hour, fixture details
 30 minutes, predictions six hours, and statistics 30 minutes. Statistics are
-fetched only when requested. Date-range fixtures load one provider call per page,
-up to five pages per selection; the UI indicates when more pages remain.
+fetched only when requested. Leagues and date-range fixtures each use one
+provider call on a cache miss; these endpoints do not accept `page`.
 When the 90-call local limit or provider rate limit is reached, the route returns
 an explicit unavailable/rate-limit message; it does not invent cached data when
 no cached response exists.
 
 ## Provider data behavior
 
-- **Leagues:** `/leagues?current=true&page=N`; only leagues with a current season
+- **Leagues:** `/leagues?current=true`; only leagues with a current season
   are selectable.
 - **Fixtures and results:** `/fixtures?from=...&to=...&league=...&season=...`;
-  at most five provider pages are loaded and the UI indicates if more remain.
+  the full filtered provider response is returned without pagination.
   Final scores are displayed only for provider statuses recognized as complete.
 - **Predictions:** `/predictions?fixture=...`; the adapter accepts a complete
   home/draw/away percentage distribution with bounded values and a total within
@@ -82,7 +80,7 @@ tickets and account links remain in their current shared storage; legacy
 provider-odds tickets are retained for reading but cannot be created through the
 new ticket API.
 
-## Verification commands (not yet run)
+## Verification commands
 
 The user must approve command execution before any of these are run. These
 checks do not deploy the site:
@@ -90,8 +88,7 @@ checks do not deploy the site:
 ```sh
 yarn lint
 node --test src/lib/analysis/analysis.test.cjs src/lib/analysis-records.test.cjs src/lib/telegram/validation.test.cjs src/lib/football/football.test.cjs
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=python python3 -m unittest discover -s python/tests
-node scripts/verify-python-parity.cjs
+node scripts/verify-analysis.cjs
 node scripts/verify-telegram.cjs
 node node_modules/typescript/bin/tsc --noEmit
 yarn build
@@ -102,9 +99,10 @@ flows, not API-Football or live Telegram. Further approved staging checks must
 exercise API-Football response variants, empty/free-tier predictions and
 statistics, the shared daily counter across instances, quota exhaustion,
 forecast-result pairing, website/Telegram fixture parity, ticket linking, and
-manual-odds labeling. No live provider call, build, test, or deployment has been
-performed for this adapter change. Production deployment requires separate
-explicit approval.
+manual-odds labeling. Local regression tests and mocked parity checks passed;
+production builds remain blocked by the local host/network environment. No live
+provider call or deployment was performed. See [current results](NATIVE_ANALYSIS.md).
+Production deployment requires separate explicit approval.
 
 ## Remaining blockers
 
@@ -115,7 +113,7 @@ explicit approval.
   must be checked against authorized account responses after approval.
 - Upstash persistence and the 90-call cap have not been exercised against a
   live Redis endpoint.
-- Hosted Python remains optional for prediction display. No Python endpoint,
-  authentication, or retrospective evaluation has been verified.
+- Native validation and retrospective evaluation tests pass. Production build
+  verification and retired-source cleanup remain blocked; see [migration notes](NATIVE_ANALYSIS.md).
 - Telegram calls and web/bot result parity have not been verified live.
 - No accuracy or profitability claim is supported by this integration.

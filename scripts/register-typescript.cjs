@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Test-only, in-memory TypeScript loading using the dependency already installed
+ * Offline tooling and test in-memory TypeScript loading using the dependency already installed
  * in this repository. This is a transpiler, not a substitute for tsc or next build.
  */
 const fs = require("node:fs");

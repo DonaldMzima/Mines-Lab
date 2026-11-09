@@ -1,8 +1,10 @@
-import { getFootballFixtureDetail } from "@/lib/football/provider";
-import { FootballProviderError } from "@/lib/football/provider";
+import { getFootballFixtureDetail } from "@/lib/football/service";
+import { FootballProviderError } from "@/lib/football/service";
 import { footballErrorResponse, isBrowserId, readJsonBody } from "@/lib/football/http";
 import { getTickets, saveTicket } from "@/lib/football/storage";
 import type { FootballFixtureDetail, FootballMarket, FootballTicketSelection } from "@/lib/football/types";
+import { MANUAL_RESULT_MARKET, MANUAL_RESULT_OUTCOMES } from "@/lib/football/ticket-markets";
+import { saveGeneratedFootballTicket } from "@/lib/football/ticket-generator";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -38,6 +40,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await readJsonBody(request);
+    if (isRecord(body) && isBrowserId(body.browserId) && typeof body.proposalId === "string") {
+      const result = await saveGeneratedFootballTicket(body.browserId, body.proposalId, body.selectedFixtureIds, body.stakeZar);
+      return Response.json({ ...result, disclaimer: "Stored quoted prices; availability may change. Every leg must win for the full displayed return. No bet was placed." }, { status: result.duplicate ? 200 : 201, headers: { "Cache-Control": "no-store" } });
+    }
     if (!isRecord(body) || !isBrowserId(body.browserId) || typeof body.stakeZar !== "number" || !Number.isFinite(body.stakeZar) ||
         body.stakeZar < 1 || body.stakeZar > 100_000 || !Array.isArray(body.selections) || body.selections.length < 1 || body.selections.length > 10) {
       throw new FootballProviderError("A ticket requires a valid browser ID, a ZAR stake from 1 to 100000, and 1 to 10 selections.", 400);
@@ -52,7 +58,8 @@ export async function POST(request: Request) {
       const detail = details.get(selection.fixtureId);
       if (!detail || !detail.fixture.isUpcoming) throw new FootballProviderError("Tickets can only contain upcoming fixtures.", 409);
       const market = detail.markets.find((item) => item.name === selection.market);
-      if (!market || !supportedOutcome(market, selection.selection)) throw new FootballProviderError(`The selected outcome is not present in the current API-Football predictions for fixture ${selection.fixtureId}.`, 409);
+      const manualChoice = detail.fixture.source === "football-data.org" && selection.market === MANUAL_RESULT_MARKET && MANUAL_RESULT_OUTCOMES.some(label => label === selection.selection);
+      if (!manualChoice && (!market || !supportedOutcome(market, selection.selection))) throw new FootballProviderError(`The selected outcome is not supported for fixture ${selection.fixtureId}.`, 409);
       return {
         ...selection,
         kickoff: detail.fixture.kickoff,

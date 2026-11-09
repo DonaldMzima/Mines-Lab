@@ -1,16 +1,18 @@
 # Mines Lab V4
 
-The existing Next.js application now contains analysis modules for all 15 games, a shared web/Telegram signal contract, manual completed-result records, and an independent Python reference engine.
+The existing Next.js application now contains analysis modules for all 15 games, a shared web/Telegram signal contract, manual completed-result records, and native TypeScript analysis and evaluation.
 
-**The API-Football integration is not yet verified.** Earlier local checks covered the fifteen-game application before football was added; they do not establish that the current source builds or that football works. No live API-Football, Upstash, hosted Python, Telegram, or production deployment verification has been performed.
+**The API-Football integration is not yet verified.** Earlier local checks covered the fifteen-game application before football was added; they do not establish that the current source builds or that football works. No live API-Football, Upstash, Telegram, or production deployment verification has been performed.
 
 ## Start here
 
 - [Full implementation report and 15-game matrix](docs/IMPLEMENTATION_REPORT.md)
 - [Game mechanics, evidence and exact blockers](docs/GAME_RULES_V4.md)
-- [Python reference calculations and JSON CLI](python/README.md)
+- [Native analysis migration and offline JSON CLI](docs/NATIVE_ANALYSIS.md)
 - [Telegram configuration and commands](docs/TELEGRAM_BOT.md)
-- [Football service and release verification](docs/FOOTBALL_SERVICE.md)
+- [Automatic football tickets, odds and limits](docs/FOOTBALL_TICKETS.md)
+- [Football sources, multi-select and current limitations](docs/FOOTBALL_DATA.md)
+- [Football archive service and release verification](docs/FOOTBALL_SERVICE.md)
 - [Authorized data-source investigation](docs/REAL_DATA_INVESTIGATION.md)
 - [Penalty evidence boundary](docs/PENALTY_INTEGRATION_BLOCKERS.md)
 
@@ -26,13 +28,13 @@ All games show **Not connected**: no authorized provider result feed was establi
 
 Next.js remains the website and bot application layer. Browser, POST /api/analysis and Telegram use the same TypeScript calculations under src/lib/analysis. Legacy Mines suggestions are adapted into that contract without migrating or deleting stored records.
 
-The fifteen-game Python reference engine remains an offline CLI. Football uses API-Football by API-Sports for current leagues, fixtures, final scores, on-demand statistics and provider prediction percentages. A Redis-backed atomic daily counter limits this adapter to 90 outbound calls per UTC day (the free plan is documented as 100/day); cache hits do not consume the counter. Provider predictions are checked against the response schema and percentage totals. The separate FastAPI service is optional: if configured it validates forecasts and enables evaluation; if not configured, valid API-Football probabilities can still be shown, while evaluation stays unavailable. No prediction is fabricated when provider data is absent.
+All fifteen games use the existing shared TypeScript engines. Football uses API-Football for current leagues, fixtures, final scores, on-demand statistics and provider probabilities. Native validation and retrospective evaluation live in `src/lib/football/analysis.ts`, shared by website and Telegram. Redis retains the atomic 90-call UTC daily budget, existing keys, forecasts, tickets and account links. No prediction is fabricated when provider data is absent.
 
-The website and Telegram call the same API-Football fixture/detail logic. Saved forecasts, manual-odds tickets and one-time account links use the same Upstash Redis namespace. Bookmaker odds are not fetched or invented; ticket odds are explicitly entered manually. The local adapter request budget, live provider coverage, shared storage, Python validation, and website/Telegram parity have not been tested end-to-end.
+The website and Telegram call the same API-Football fixture/detail logic. Saved forecasts, manual-odds tickets and one-time account links use the same Upstash Redis namespace. Bookmaker odds are not fetched or invented; ticket odds are explicitly entered manually. The local adapter request budget, live provider coverage, shared storage, native validation, and website/Telegram parity have not been tested end-to-end.
 
 Telegram preserves @MinesLabSignalsBot and its existing webhook. Its non-football state uses the existing Telegram storage configuration; football tickets and forecast history use Upstash. Browser and general game histories remain separate.
 
-## Local verification commands (not run for football changes)
+## Local verification commands
 
 Earlier results apply only to the non-football app before the current football
 provider work. The current checks are:
@@ -41,11 +43,14 @@ provider work. The current checks are:
 yarn lint
 node --test src/lib/analysis/analysis.test.cjs src/lib/analysis-records.test.cjs src/lib/telegram/validation.test.cjs
 node --test src/lib/football/football.test.cjs
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=python python3 -m unittest discover -s python/tests
-node scripts/verify-python-parity.cjs
+node scripts/verify-analysis.cjs
 node scripts/verify-telegram.cjs
 node node_modules/typescript/bin/tsc --noEmit
 yarn build
 ~~~
 
-These are the prepared local commands, not results for the current football changes. Follow [FOOTBALL_SERVICE.md](docs/FOOTBALL_SERVICE.md) for the full check sequence, hosted-service prerequisites, and required approval gates. Do not treat earlier game-suite or browser-smoke results as verification of football.
+See the migration notes for current results and environment blockers. Follow [FOOTBALL_SERVICE.md](docs/FOOTBALL_SERVICE.md) for the full check sequence, configuration prerequisites, and required approval gates. Do not treat earlier game-suite or browser-smoke results as verification of football.
+
+Regression and mocked integration checks passed; production build verification and removal of the retired reference sources remain blocked; see [the migration notes](docs/NATIVE_ANALYSIS.md).
+
+The Football route now prioritizes Generate Ticket with custom dates, stake, strategy and actual bookmaker quotes when configured. See [ticket setup and verification](docs/FOOTBALL_TICKETS.md); live coverage remains unverified.

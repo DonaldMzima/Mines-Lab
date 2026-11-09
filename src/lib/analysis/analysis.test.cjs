@@ -114,9 +114,9 @@ test("Invalid inputs become explicit unavailable contracts", () => {
   assert.ok(validateGameInput("aviator", { target: 2, history: [{ roundId: "bad-date", completedAt: "2020-02-31T00:00:00Z", multiplier: 2, source: "manual" }] }).length);
 });
 
-const sharedFixtures = JSON.parse(fs.readFileSync(require("node:path").resolve(__dirname, "../../../python/fixtures/analysis-cases.json"), "utf8"));
+const sharedFixtures = JSON.parse(fs.readFileSync(require("node:path").resolve(__dirname, "./fixtures/analysis-cases.json"), "utf8"));
 for (const fixture of sharedFixtures.cases) {
-  test(`Shared Python/TypeScript mathematical fixture: ${fixture.gameId}`, () => {
+  test(`Shared mathematical fixture: ${fixture.gameId}`, () => {
     const signal = analyzeGame(fixture.gameId, fixture.input);
     for (const check of fixture.checks) {
       const actual = check.tsPath.reduce((value, key) => value[key], signal);
@@ -125,3 +125,5 @@ for (const fixture of sharedFixtures.cases) {
     }
   });
 }
+
+require("./migration.test.ts");

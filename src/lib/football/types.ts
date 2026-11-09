@@ -1,4 +1,5 @@
 export type FootballPeriod = "today" | "tomorrow" | "week" | "weekend" | "next7";
+export type FootballSource = "API-Football" | "football-data.org";
 
 export interface FootballCompetition {
   id: number;
@@ -6,6 +7,9 @@ export interface FootballCompetition {
   country: string | null;
   code: string | null;
   season: number;
+  source?: FootballSource;
+  available?: boolean;
+  unavailableReason?: string;
 }
 
 export interface FootballOutcome {
@@ -53,6 +57,17 @@ export interface FootballFixture {
   predictable: boolean | null;
   isUpcoming: boolean;
   isCompleted: boolean;
+  source?: FootballSource;
+  homeTeamAliases?: string[];
+  awayTeamAliases?: string[];
+}
+
+export interface FootballFixtureProvider {
+  source: FootballSource;
+  competitions(): Promise<FootballCompetition[]>;
+  fixtures(period: FootballPeriod, competitionIds: number[]): Promise<FootballFixture[]>;
+  detail(id: number): Promise<FootballFixtureDetail>;
+  statistics(id: number): Promise<FootballStatisticsResult>;
 }
 
 export interface FootballFixtureDetail {
@@ -77,10 +92,17 @@ export interface FootballTicketSelection {
   market: string;
   selection: string;
   decimalOdds: number;
-  oddsSource: "manual" | "legacy-provider";
+  oddsSource: "manual" | "legacy-provider" | "The Odds API";
   providerOddId: number | null;
   bookmaker: string;
+  bookmakerKey?: string;
   oddsObservedAt: string | null;
+  oddsUpdatedAt?: string;
+  providerEventId?: string;
+  providerMarketKey?: string;
+  estimatedProbability?: number;
+  probabilityBasis?: "market-implied";
+  pushProbability?: number;
 }
 
 export interface FootballTicket {
@@ -92,4 +114,6 @@ export interface FootballTicket {
   potentialReturnZar: number;
   potentialProfitZar: number;
   fingerprint: string;
+  riskLabel?: string;
+  methodology?: string;
 }

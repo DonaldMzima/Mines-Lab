@@ -3,7 +3,7 @@ import { FootballStorageError } from "./storage";
 
 export function footballErrorResponse(error: unknown): Response {
   if (error instanceof FootballProviderError || error instanceof FootballStorageError) {
-    return Response.json({ error: error.message }, { status: error instanceof FootballProviderError ? error.status : 503, headers: { "Cache-Control": "no-store" } });
+    return Response.json({ error: error.message, code: error instanceof FootballProviderError ? error.code : "redis_unavailable" }, { status: error instanceof FootballProviderError ? error.status : 503, headers: { "Cache-Control": "no-store" } });
   }
   console.error("Unexpected football API error", error);
   return Response.json({ error: "The football request failed unexpectedly." }, { status: 500, headers: { "Cache-Control": "no-store" } });

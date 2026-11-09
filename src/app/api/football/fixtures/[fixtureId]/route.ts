@@ -1,4 +1,4 @@
-import { getFootballFixtureDetail } from "@/lib/football/provider";
+import { getFootballFixtureDetail } from "@/lib/football/service";
 import { footballErrorResponse } from "@/lib/football/http";
 
 export async function GET(_request: Request, context: RouteContext<"/api/football/fixtures/[fixtureId]">) {
