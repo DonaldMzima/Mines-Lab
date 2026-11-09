@@ -1,13 +1,14 @@
-# Mines Lab offline Python analysis
+# Mines Lab Python analysis
 
-Python 3.10+; standard library only. All fifteen games have registry entries and
-game-specific modules. This is an independent reference/evaluation engine, not a
-deployed service. Next.js and Telegram use the matching TypeScript calculations;
-they never spawn Python or depend on an absent production FastAPI endpoint.
+Python 3.10+. The fifteen game engines form an offline reference/evaluation CLI.
+Football optionally provides an authenticated FastAPI service for additional
+validation of API-Football prediction percentages and retrospective evaluation.
+It is a separate deployable service, not a local subprocess. API-Football
+predictions remain available from the provider when this optional service is
+not configured; retrospective evaluation is then explicitly unavailable.
 
-No dependency installation is required. `requirements.txt` is intentionally empty
-apart from its explanatory comment. No NumPy, SciPy, pandas, machine learning, or
-web framework is needed for these bounded calculations.
+The offline game calculations use the standard library. The hosted football API
+requires the packages listed in `requirements.txt`.
 
 ## Contract and provenance
 
@@ -116,10 +117,62 @@ history provenance/future/duplicate rejection and prospective evaluation.
 PYTHONPATH=python python3 -m unittest discover -s python/tests
 ```
 
-These tests are **written, not executed**. The user permitted read-only inspection
-commands only; no Python interpreter, test suite, build or compilation was run.
-There is no production runtime verification. Execute the suite after permission,
-then compare the independent formulas with TypeScript fixtures before deployment.
+The fifteen-game Python suite and football tests are automated, but the current
+football integration changes have not yet been tested. Earlier Python test
+results predate the football API changes and do not verify its deployment or
+runtime behavior. Obtain explicit approval before running the suite.
+
+## Deployment boundaries
+
+The main website is the Next.js application at the repository root. Its root
+`vercel.json` explicitly selects `"framework": "nextjs"`. In the main Vercel
+project, use the repository root (`./`) as **Root Directory**, **Next.js** as
+**Framework Preset**, `yarn install --frozen-lockfile` as **Install Command**, and
+`yarn build` as **Build Command**. Leave **Output Directory** at the Next.js
+default; remove any Python install/start command overrides. Keep the existing
+Telegram, API-Football, Redis, and other server environment variables.
+
+After these files have been committed and pushed by the operator, deploy that
+new revision in Vercel. Do not redeploy the older failed revision: it does not
+contain the framework fix. For a clean retry, leave **Use existing Build Cache**
+unselected if Vercel offers that option. Confirm the logs select Next.js and
+run the Yarn build rather than searching for a Python entrypoint.
+
+No Python entrypoint is needed by the main Vercel project. The optional service
+has the real ASGI entrypoint `football_service.main:app`, defined in
+`python/football_service/main.py`. Deploy it independently on a Python 3.10+
+ASGI host with working directory `python/`, install `requirements.txt`, and
+start `uvicorn football_service.main:app --host 0.0.0.0 --port <host-port>`.
+Use the port assigned by the host and expose an HTTPS origin. Keep both
+`football_service/` and its sibling `mines_lab_analysis/` in that deployment.
+The repository-root equivalent command is shown under **Hosted football API**.
+Configure the shared token and Next.js service URL as described there; verify
+`GET /health` before enabling the integration. The offline analysis CLI is
+`mines_lab_analysis.__main__`, not a web server.
+
+## Hosted football API
+
+To enable optional hosted validation and evaluation, set
+`FOOTBALL_MODEL_API_TOKEN` on the Python host to a secret of at least 32
+characters and set the same value as a server-only variable in Next.js. The
+Next.js variable `FOOTBALL_MODEL_API_URL` must be the HTTPS origin of this
+service. When both values are unset, provider prediction display still works;
+evaluation remains unavailable. Do not configure a plain-HTTP URL or place
+secrets in client code.
+
+Install dependencies and run behind an HTTPS-terminating hosting proxy:
+
+```sh
+python3 -m pip install -r python/requirements.txt
+PYTHONPATH=python uvicorn football_service.main:app --host 0.0.0.0 --port 8000
+```
+
+`GET /health` is the liveness endpoint. Authenticated JSON endpoints are
+`POST /v1/validate-predictions` and `POST /v1/evaluate`; requests are limited to
+one MiB. A successful response means a provider probability payload passed the
+documented distribution checks, not that it predicts an outcome accurately.
+See [the service/release guide](../docs/FOOTBALL_SERVICE.md) for all settings,
+web/Telegram flow, exact checks, and approval requirements.
 
 ## Evidence boundaries
 

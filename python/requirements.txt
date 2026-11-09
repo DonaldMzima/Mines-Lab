@@ -1,1 +1,3 @@
-# Standard library only. Add a dependency only when a concrete analysis requires it.
+# FastAPI is used by the separately hosted, authenticated football analysis service.
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1

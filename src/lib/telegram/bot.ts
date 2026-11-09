@@ -13,6 +13,12 @@ import { allowTelegramAction, claimTelegramUpdate, completeTelegramUpdate, getTe
 import type { TelegramUserState } from "@/lib/telegram/store";
 import type { TelegramCallbackQuery, TelegramUpdate, InlineKeyboardMarkup } from "@/lib/telegram/types";
 import { formatPenaltyProbability, getPenaltySeriesAnalysis } from "@/lib/penalty";
+import { getFootballCompetitions, getFootballFixtureDetail, getFootballFixtureStatistics, listFootballFixtures } from "@/lib/football/provider";
+import { FootballProviderError } from "@/lib/football/provider";
+import { FootballStorageError, consumeTelegramLink, getLinkedBrowserId, getTickets } from "@/lib/football/storage";
+import { getForecastHistory } from "@/lib/football/storage";
+import { evaluateProviderForecasts, pythonServiceConfigured } from "@/lib/football/python-client";
+import type { FootballPeriod } from "@/lib/football/types";
 
 const icons: Record<GameId, string> = { mines: "💣", penalty: "⚽", blackjack: "🃏", hilo: "🃏", dice: "🎲", plinko: "🔵", keno: "🔢", towers: "🏰", coinflip: "🪙", poker: "♠️", "lucky-jet": "🚀", "rocket-queen": "🚀", "rocket-x": "🚀", aviator: "✈️", "speed-cash": "🏎️" };
 const mineCounts = [2, 3, 5, 7] as const;
@@ -22,8 +28,261 @@ function gameButton(id: GameId) { return { text: icons[id] + " " + getGameDefini
 function menu(category: "main" | "crash" | "more" = "main"): InlineKeyboardMarkup {
   const games: GameId[] = category === "crash" ? ["lucky-jet", "rocket-queen", "rocket-x", "aviator", "speed-cash"] : category === "more" ? ["hilo", "plinko", "keno", "towers", "coinflip", "poker"] : ["mines", "penalty", "blackjack", "dice"];
   const rows = Array.from({ length: Math.ceil(games.length / 2) }, (_, i) => games.slice(i * 2, i * 2 + 2).map(gameButton));
+  if (category === "main") rows.push([{ text: "⚽ Football Predictions", callback_data: "menu:football" }]);
   rows.push(category === "main" ? [{ text: "🚀 Crash", callback_data: "menu:crash" }, { text: "🎮 More Games", callback_data: "menu:more" }] : [{ text: "All Games", callback_data: "menu:main" }]);
   return { inline_keyboard: rows };
+}
+
+function footballError(error: unknown): string | null {
+  if (error instanceof FootballProviderError || error instanceof FootballStorageError) return error.message;
+  return null;
+}
+
+const footballPeriods: { value: FootballPeriod; label: string }[] = [
+  { value: "today", label: "Today's Matches" },
+  { value: "tomorrow", label: "Tomorrow's Matches" },
+  { value: "weekend", label: "Weekend Matches" },
+  { value: "next7", label: "Weekly Predictions · Next 7 Days" },
+];
+
+async function footballMenu(chatId: number): Promise<void> {
+  await sendTelegramMessage(chatId, "⚽ FOOTBALL PREDICTIONS\n\nChoose a period or manage saved tickets.", { inline_keyboard: [
+    footballPeriods.slice(0, 2).map((period) => ({ text: period.label, callback_data: `football:period:${period.value}` })),
+    footballPeriods.slice(2).map((period) => ({ text: period.label, callback_data: `football:period:${period.value}` })),
+    [{ text: "Build Ticket", callback_data: "football:ticket" }, { text: "My Tickets", callback_data: "football:tickets" }],
+    [{ text: "Match Search", callback_data: "football:search" }, { text: "Prediction History", callback_data: "football:history" }],
+    [{ text: "Main menu", callback_data: "menu:main" }],
+  ] });
+}
+
+async function footballCompetitions(chatId: number, period: FootballPeriod = "next7", page = 0): Promise<void> {
+  try {
+    const result = await getFootballCompetitions();
+    const competitions = result.competitions;
+    const pageSize = 20;
+    const pageCount = Math.max(1, Math.ceil(competitions.length / pageSize));
+    const safePage = Math.min(Math.max(0, page), pageCount - 1);
+    const rows = competitions.slice(safePage * pageSize, (safePage + 1) * pageSize).map((competition) => [{
+      text: (competition.country ? `${competition.country} · ` : "") + competition.name,
+      callback_data: `football:league:${period}:${competition.id}`,
+    }]);
+    rows.push([
+      ...(safePage > 0 ? [{ text: "Previous", callback_data: `football:competitions:${period}:${safePage - 1}` }] : []),
+      ...(safePage + 1 < pageCount ? [{ text: "Next", callback_data: `football:competitions:${period}:${safePage + 1}` }] : []),
+      { text: "Periods", callback_data: "menu:football" },
+    ]);
+    await sendTelegramMessage(chatId, `⚽ ${footballPeriods.find((item) => item.value === period)?.label ?? "Upcoming fixtures"}\n\nChoose a current API-Football league:${result.truncated ? "\nShowing the first leagues available under the daily request budget." : ""}`, { inline_keyboard: rows });
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Football data unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function footballFixtures(chatId: number, competitionId: number, period: FootballPeriod): Promise<void> {
+  try {
+    await updateTelegramUser(chatId, { footballCompetitionId: competitionId, footballPeriod: period });
+    const result = await listFootballFixtures(period, competitionId);
+    if (result.fixtures.length === 0) {
+      await sendTelegramMessage(chatId, "No fixtures were returned for this competition and period.", { inline_keyboard: [[{ text: "Choose competition", callback_data: `football:period:${period}` }]] });
+      return;
+    }
+    const fixtures = result.fixtures.slice(0, 20);
+    const keyboard = fixtures.map((fixture) => [{
+      text: `${fixture.homeTeam} ${fixture.isCompleted ? `${fixture.homeScore ?? "?"}-${fixture.awayScore ?? "?"}` : "vs"} ${fixture.awayTeam}`.slice(0, 60),
+      callback_data: `football:fixture:${fixture.id}`,
+    }]);
+    keyboard.push([{ text: "Choose competition", callback_data: "menu:football" }, { text: "Main menu", callback_data: "menu:main" }]);
+    await sendTelegramMessage(chatId, `⚽ FIXTURES & RESULTS · ${result.fixtures[0].competition.name}\n${footballPeriods.find((item) => item.value === period)?.label} · times SAST\nChoose a match for available prediction data or final score.${result.truncated || result.fixtures.length > 20 ? "\nShowing a partial list; narrow the period or use the website." : ""}`, { inline_keyboard: keyboard });
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Football data unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function footballPrediction(chatId: number, fixtureId: number): Promise<void> {
+  try {
+    const detail = await getFootballFixtureDetail(fixtureId);
+    const prediction = detail.primaryOutcome;
+    const kickoff = new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Johannesburg" }).format(new Date(detail.fixture.kickoff)) + " SAST";
+    await sendTelegramMessage(chatId, [
+      `⚽ ${detail.fixture.homeTeam} vs ${detail.fixture.awayTeam}`,
+      `${detail.fixture.competition.name} · ${kickoff}`,
+      "",
+      prediction && detail.model.status === "provider-model"
+        ? `Most likely provider outcome: ${prediction.outcome} · ${prediction.market} · ${prediction.probability.toFixed(1)}%`
+        : detail.model.summary,
+      `Source: API-Football · ${detail.model.version}.`,
+      "Not a guarantee or instruction to bet. No bet was placed.",
+      "/tickets shows your linked website tickets.",
+    ].join("\n"), {
+      inline_keyboard: [
+        [{ text: "Prediction details", callback_data: `football:details:${fixtureId}` }, { text: "Match statistics", callback_data: `football:stats:${fixtureId}` }],
+        [{ text: "Choose competition", callback_data: "menu:football" }, { text: "Main menu", callback_data: "menu:main" }],
+      ],
+    });
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Football data unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function footballDetails(chatId: number, fixtureId: number): Promise<void> {
+  try {
+    const detail = await getFootballFixtureDetail(fixtureId);
+    const lines = [
+      `⚽ ${detail.fixture.homeTeam} vs ${detail.fixture.awayTeam}`,
+      `Source: API-Football · ${detail.model.version}`,
+      ...detail.markets.map((market) => `${market.name}: ${market.outcomes.map((item) => `${item.label} ${item.probability.toFixed(1)}%`).join(" · ")}`),
+      "",
+      detail.model.summary,
+      detail.fixture.isCompleted && detail.fixture.homeScore !== null && detail.fixture.awayScore !== null
+        ? `Final result: ${detail.fixture.homeScore}-${detail.fixture.awayScore}.`
+        : "Bookmaker odds are not fetched. Ticket odds must be entered manually on the website.",
+      "No bet was placed.",
+    ];
+    await sendTelegramMessage(chatId, lines.join("\n"), { inline_keyboard: [
+      [{ text: "Match statistics", callback_data: `football:stats:${fixtureId}` }],
+      [{ text: "Back to prediction", callback_data: `football:fixture:${fixtureId}` }],
+    ] });
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Football data unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function footballStatistics(chatId: number, fixtureId: number): Promise<void> {
+  try {
+    const result = await getFootballFixtureStatistics(fixtureId);
+    const lines = [`⚽ MATCH STATISTICS · API-FOOTBALL · Fixture ${fixtureId}`, result.message];
+    for (const team of result.teams) {
+      lines.push("", team.teamName);
+      lines.push(...team.statistics.map((item) => `${item.type}: ${item.value ?? "Not reported"}`));
+    }
+    await sendTelegramMessage(chatId, lines.join("\n").slice(0, 3900), { inline_keyboard: [[{ text: "Back to prediction", callback_data: `football:fixture:${fixtureId}` }]] });
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Match statistics unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function linkFootballTickets(chatId: number, code: string): Promise<void> {
+  if (!/^[0-9a-f]{16}$/i.test(code)) {
+    await sendTelegramMessage(chatId, "Use a 16-character, one-time code from the website: /link CODE.");
+    return;
+  }
+  try {
+    if (!await consumeTelegramLink(code.toLowerCase(), chatId)) {
+      await sendTelegramMessage(chatId, "That code is invalid, expired, or already used. Create a new code on the website.");
+      return;
+    }
+    await sendTelegramMessage(chatId, "Website tickets are now linked to this private chat. Use /tickets to view them.");
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Ticket linking unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function showFootballTickets(chatId: number): Promise<void> {
+  try {
+    const browserId = await getLinkedBrowserId(chatId);
+    if (!browserId) {
+      await sendTelegramMessage(chatId, "No website is linked. Open Football in Mines Lab and create a one-time Telegram link code.");
+      return;
+    }
+
+    const tickets = await getTickets(browserId);
+    if (tickets.length === 0) {
+      await sendTelegramMessage(chatId, "No saved website tickets yet. Saved tickets will appear here; no bet is placed.");
+      return;
+    }
+    const lines = ["⚽ SAVED WEBSITE TICKETS"];
+    for (const ticket of tickets.slice(0, 5)) {
+      lines.push("", `Stake R${ticket.stakeZar.toFixed(2)} · odds ${ticket.combinedOdds.toFixed(2)} · ${new Date(ticket.createdAt).toLocaleString()}`);
+      for (const selection of ticket.selections) lines.push(`${selection.homeTeam} vs ${selection.awayTeam}: ${selection.market} — ${selection.selection} @ ${selection.decimalOdds.toFixed(2)} (${selection.oddsSource === "manual" ? "Manual" : `Legacy provider: ${selection.bookmaker}`})`);
+      lines.push(`Potential return R${ticket.potentialReturnZar.toFixed(2)} · estimate only, not guaranteed.`);
+      lines.push(`Potential profit R${ticket.potentialProfitZar.toFixed(2)} · all selections must win.`);
+    }
+    await sendTelegramMessage(chatId, lines.join("\n"));
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Saved tickets unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function searchFootballMatches(chatId: number, query: string): Promise<void> {
+  const search = query.trim().toLocaleLowerCase();
+  if (search.length < 2 || search.length > 80) {
+    await sendTelegramMessage(chatId, "Use /search followed by at least two team-name characters. Choose a football competition first.");
+    return;
+  }
+  const state = await getTelegramUser(chatId);
+  if (!state.footballCompetitionId) {
+    await sendTelegramMessage(chatId, "Choose a competition and period with /football first, then use /search TEAM.");
+    return;
+  }
+  try {
+    const { fixtures } = await listFootballFixtures(state.footballPeriod, state.footballCompetitionId);
+    const matches = fixtures.filter((fixture) => fixture.homeTeam.toLocaleLowerCase().includes(search) || fixture.awayTeam.toLocaleLowerCase().includes(search)).slice(0, 20);
+    if (matches.length === 0) { await sendTelegramMessage(chatId, "No matching upcoming teams were found in the selected competition and period."); return; }
+    await sendTelegramMessage(chatId, "⚽ MATCH SEARCH · " + matches.length + " result(s)", { inline_keyboard: matches.map((fixture) => [{ text: `${fixture.homeTeam} vs ${fixture.awayTeam}`.slice(0, 60), callback_data: `football:fixture:${fixture.id}` }]) });
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Football search unavailable: ${message}`); return; }
+    throw error;
+  }
+}
+
+async function footballPredictionHistory(chatId: number): Promise<void> {
+  try {
+    const records = (await getForecastHistory()).filter(({ forecast }) => forecast.provider === "API-Football");
+    let evaluation: Record<string, unknown> | null = null;
+    let evaluationUnavailable = "Evaluation unavailable: hosted Python analysis is not configured.";
+    if (pythonServiceConfigured()) {
+      try {
+        evaluation = await evaluateProviderForecasts(records);
+        evaluationUnavailable = "";
+      } catch (error) {
+        const message = footballError(error);
+        if (!message) throw error;
+        evaluationUnavailable = `Evaluation unavailable: ${message}`;
+      }
+    }
+    const accuracy = evaluation && typeof evaluation.topOutcomeAccuracy === "number" ? `${(evaluation.topOutcomeAccuracy * 100).toFixed(1)}%` : "Not available";
+    const brier = evaluation && typeof evaluation.multiclassBrierScore === "number" ? evaluation.multiclassBrierScore.toFixed(4) : "Not available";
+    const bookmaker = evaluation && typeof evaluation.bookmakerBrierScore === "number" ? evaluation.bookmakerBrierScore.toFixed(4) : "Not available";
+    const bets = evaluation && typeof evaluation.hypotheticalOneUnitNetReturn === "number" ? `${evaluation.hypotheticalOneUnitNetReturn >= 0 ? "+" : ""}${evaluation.hypotheticalOneUnitNetReturn.toFixed(2)} units (${evaluation.hypotheticalTopOutcomeBets} bets)` : "Not available";
+    const recent = records.slice(0, 5).map(({ forecast, result }) => {
+      const teams = `${String(forecast.homeTeam ?? "Home")} vs ${String(forecast.awayTeam ?? "Away")}`;
+      const primary = isRecord(forecast.primaryOutcome) && typeof forecast.primaryOutcome.outcome === "string" ? forecast.primaryOutcome.outcome : "No outcome";
+      const score = result && typeof result.home === "number" && typeof result.away === "number" ? ` · ${result.home}-${result.away}` : " · pending";
+      return `${teams}: ${primary}${score}`;
+    });
+    await sendTelegramMessage(chatId, [
+      "⚽ PREDICTION HISTORY",
+      `Settled fixtures: ${evaluation && typeof evaluation.evaluatedFixtures === "number" ? evaluation.evaluatedFixtures : "Not evaluated"}`,
+      `Top-outcome accuracy: ${accuracy}`,
+      `Multiclass Brier score: ${brier}`,
+      `Uniform baseline Brier score: ${evaluation && typeof evaluation.uniformBaselineBrierScore === "number" ? evaluation.uniformBaselineBrierScore.toFixed(4) : "Not available"}`,
+      `Bookmaker baseline Brier score: ${bookmaker}`,
+      `Flat one-unit simulation: ${bets}`,
+      ...(evaluationUnavailable ? [evaluationUnavailable] : []),
+      "",
+      ...recent,
+      "",
+      String(evaluation?.disclaimer ?? "Evaluation unavailable without the configured hosted Python analysis service. No accuracy claim is made."),
+    ].join("\n"));
+  } catch (error) {
+    const message = footballError(error);
+    if (message) { await sendTelegramMessage(chatId, `Prediction history unavailable: ${message}`); return; }
+    throw error;
+  }
 }
 function controls(game: GameId): InlineKeyboardMarkup {
   const rows = [
@@ -202,7 +461,21 @@ async function handleCommand(chatId: number, text: string): Promise<void> {
   const body = text.trim().slice(head.length).trim();
   if (command === "/start" || command === "/games") { await sendTelegramMessage(chatId, "MINES LAB\n\nChoose Game", menu()); return; }
   if (command === "/help") {
-    await sendTelegramMessage(chatId, "MINES LAB\n/games — choose game\n/signal — selected game analysis\n/settings — settings and input format\n/config {JSON} — update selected game\n/details — calculations and limitations\n/result or /round — latest completed result\n/history — results and signals separately\n/status — connection and storage\n/penalty — select Penalty\n/notifications [on|off] — notification preference\n\n/record {\"gameId\":\"dice\",\"roundId\":\"your-round\",\"completedAt\":\"ISO timestamp\",\"source\":\"manual\",\"data\":{\"value\":42}}\n\nUse your actual completed records. Link a roundId in settings before Get Signal for prospective matching. Manual results do not establish verified accuracy. Mines suggestions are experimental random tiles.", menu()); return;
+    await sendTelegramMessage(chatId, "MINES LAB\n/games — choose game\n/signal — selected game analysis\n/settings — settings and input format\n/config {JSON} — update selected game\n/details — calculations and limitations\n/result or /round — latest completed result\n/history — results and signals separately\n/status — connection and storage\n/penalty — select Penalty\n/football — football periods, competitions and fixtures\n/search TEAM — search the selected football competition\n/footballstats ID — fixture statistics when available\n/footballhistory — prediction evaluation\n/prediction ID — provider prediction for a fixture\n/link CODE — link website tickets once\n/tickets — view linked website tickets\n/notifications [on|off] — notification preference\n\n/record {\"gameId\":\"dice\",\"roundId\":\"your-round\",\"completedAt\":\"ISO timestamp\",\"source\":\"manual\",\"data\":{\"value\":42}}\n\nUse your actual completed records. Link a roundId in settings before Get Signal for prospective matching. Manual results do not establish verified accuracy. Mines suggestions are experimental random tiles. Football probabilities and ticket returns are not guaranteed.", menu()); return;
+  }
+  if (command === "/football" || command === "/fixtures") { await footballMenu(chatId); return; }
+  if (command === "/weekly") { await footballCompetitions(chatId, "next7"); return; }
+  if (command === "/search") { await searchFootballMatches(chatId, body); return; }
+  if (command === "/footballhistory" || command === "/predictions") { await footballPredictionHistory(chatId); return; }
+  if (command === "/link") { await linkFootballTickets(chatId, body); return; }
+  if (command === "/tickets") { await showFootballTickets(chatId); return; }
+  if (command === "/prediction") {
+    if (!/^\d{1,12}$/.test(body)) { await sendTelegramMessage(chatId, "Use /prediction followed by a fixture ID."); return; }
+    await footballPrediction(chatId, Number(body)); return;
+  }
+  if (command === "/footballstats") {
+    if (!/^\d{1,12}$/.test(body)) { await sendTelegramMessage(chatId, "Use /footballstats followed by a fixture ID."); return; }
+    await footballStatistics(chatId, Number(body)); return;
   }
   if (command === "/signal") { await sendSignal(chatId); return; }
   if (command === "/settings") { await settings(chatId); return; }
@@ -228,7 +501,41 @@ async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
   const data = callback.data;
   // Answer once before slow storage/analysis work. Acknowledgment alone does not mark an update completed.
   await answerTelegramCallback(callback.id);
+  if (data === "menu:football") { await footballMenu(chatId); return; }
   if (data.startsWith("menu:")) { const category = data.slice(5); if (category === "main" || category === "crash" || category === "more") { await sendTelegramMessage(chatId, "MINES LAB\n\nChoose Game", menu(category)); return; } }
+  const footballPeriod = /^football:period:(today|tomorrow|weekend|next7)$/.exec(data);
+  if (footballPeriod) { await footballCompetitions(chatId, footballPeriod[1] as FootballPeriod); return; }
+  const competitionPage = /^football:competitions:(today|tomorrow|weekend|next7):(\d{1,2})$/.exec(data);
+  if (competitionPage) { await footballCompetitions(chatId, competitionPage[1] as FootballPeriod, Number(competitionPage[2])); return; }
+  const competition = /^football:league:(today|tomorrow|weekend|next7):(\d{1,12})$/.exec(data);
+  if (competition) { await footballFixtures(chatId, Number(competition[2]), competition[1] as FootballPeriod); return; }
+  if (data === "football:tickets") { await showFootballTickets(chatId); return; }
+  if (data === "football:history") { await footballPredictionHistory(chatId); return; }
+  if (data === "football:search") {
+    const state = await getTelegramUser(chatId);
+    await sendTelegramMessage(chatId, state.footballCompetitionId ? "Search upcoming teams in your selected competition and period with /search TEAM." : "Choose a competition and period first, then search with /search TEAM.", { inline_keyboard: [[{ text: "Choose fixtures", callback_data: "menu:football" }]] });
+    return;
+  }
+  if (data === "football:ticket") {
+    const configured = process.env.APP_BASE_URL;
+    if (configured) {
+      try {
+        const url = new URL(configured);
+        if (url.protocol === "https:" && !url.username && !url.password) {
+          await sendTelegramMessage(chatId, `Build a ticket on the website: ${url.origin}/football\nNothing will be placed automatically.`);
+          return;
+        }
+      } catch { /* Invalid optional URL is reported through the regular website configuration screen. */ }
+    }
+    await sendTelegramMessage(chatId, "Open the Mines Lab website and choose Football to build and save a ticket. Nothing is placed automatically.");
+    return;
+  }
+  const footballFixture = /^football:fixture:(\d{1,12})$/.exec(data);
+  if (footballFixture) { await footballPrediction(chatId, Number(footballFixture[1])); return; }
+  const footballDetail = /^football:details:(\d{1,12})$/.exec(data);
+  if (footballDetail) { await footballDetails(chatId, Number(footballDetail[1])); return; }
+  const footballStats = /^football:stats:(\d{1,12})$/.exec(data);
+  if (footballStats) { await footballStatistics(chatId, Number(footballStats[1])); return; }
   if (data.startsWith("game:") && isGameId(data.slice(5))) {
     const id = data.slice(5) as GameId;
     await updateTelegramUser(chatId, { selectedGame: id });

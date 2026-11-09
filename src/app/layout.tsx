@@ -18,13 +18,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Mines Lab | Game Analysis",
   description:
-    "Analyze Mines probabilities, experimental signals, and user-imported round history.",
+    "Analyze Mines signals and API-Football-powered fixtures, predictions, results, and tickets.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

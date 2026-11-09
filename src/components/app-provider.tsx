@@ -332,7 +332,9 @@ export function AppProvider({ children, adapter, config = DEFAULT_MINES_PROVIDER
     updatePreferences, addRounds, clearHistory, addSignal, evaluate, linkRound, clearSignals, recoverStorage,
   }), [workspace, ready, notice, storageStatus, lastImport, tracking, connection, providerConfig, connectProvider, disconnectProvider, testProviderConnection, connectionTest, connectGame, demoConnection, connectDemo, disconnectDemo, startDemo, pauseDemo, resetDemo, updatePreferences, addRounds, clearHistory, addSignal, evaluate, linkRound, clearSignals, recoverStorage]);
 
-  return <AppContext.Provider value={value}>{ready ? children : <div className="workspace-loading" role="status">Loading local workspace…</div>}</AppContext.Provider>;
+  // Keep route children in the prerendered tree so instant navigation can validate them.
+  // Browser storage hydrates the initial workspace without blocking page rendering.
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export function useAppState(): AppContextValue {

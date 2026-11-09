@@ -1,16 +1,16 @@
 # Mines Lab V4 implementation report
 
-Date: 8 November 2026. This report describes source changes in the existing repository, not a production release.
+Date: 9 November 2026. This report describes source changes in the existing repository, not a production release.
 
 ## Verification boundary
 
-The user approved local tests, builds and loopback/browser checks. `yarn lint` passed with seven warnings; the Node suite passed 41 tests; Python passed 43 tests; TypeScript type-check and production build passed. Cross-language parity passed 28 scenarios/42 metrics, the release verifier passed 34 checks, and the offline Telegram verifier passed 27 cases/412 assertions. A production-build browser smoke clicked all fifteen **Get Signal** buttons, checked persistence, exercised confirmed Blackjack/Hilo actions, and started/completed the labeled Mines demo.
+Earlier local tests, builds and loopback/browser checks passed for the fifteen-game application before the football integration was added: `yarn lint` had seven warnings; the Node suite passed 41 tests; Python passed 43 tests; TypeScript type-check and production build passed. Cross-language parity passed 28 scenarios/42 metrics, the release verifier passed 34 checks, and the offline Telegram verifier passed 27 cases/412 assertions. A production-build browser smoke clicked all fifteen game **Get Signal** buttons, checked persistence, exercised confirmed Blackjack/Hilo actions, and started/completed the labeled Mines demo. These are historical results and do not verify the current football source.
 
-These are local/offline results only. The Next.js API and UI use TypeScript; the Node parity verifier calls the Python CLI separately. Direct Next.js-to-Python runtime communication is not implemented or verified. No live provider feed, real Telegram request, production Redis, production deployment, or future-outcome accuracy was verified.
+The API-Football changes, including their added tests, have not been linted, type-checked, built, or executed. The API-Sports key/plan, live payloads, Upstash persistence and daily counter, optional hosted Python service, actual Telegram requests/callbacks, production deployment, and forecast accuracy remain unverified.
 
 ## All 15 games
 
-UI entries describe the implemented paths; all fifteen Get Signal buttons were smoke-tested locally. Telegram entries were verified by the offline mocked integration suite, not against Telegram's live service. Python is an offline reference engine. Real data means the supported manual/demo input path, not independently authenticated provider access. No game has validated future-outcome accuracy.
+UI entries describe the implemented paths; all fifteen non-football Get Signal buttons were smoke-tested before football changes. Telegram entries were verified by the earlier offline mocked integration suite, not against Telegram's live service. Python is an offline reference engine for the games and an optional, unverified FastAPI validation/evaluation service for football. Football uses API-Football v3 provider probabilities when available; provider entitlements and coverage are not confirmed. No game has independently validated future-outcome accuracy.
 
 | Game | Python engine | UI path | Telegram path | Real data | Signal method | Validated accuracy |
 |---|---|---|---|---|---|---|
@@ -60,7 +60,13 @@ Update claims use a short processing lease and completed-update retention. Share
 
 ## Python integration choice
 
-Python is an offline reference and evaluation engine, compatible with the actual existing Next.js deployment rather than dependent on a nonexistent FastAPI service. Every game has a real implementation behind a strict frozen dataclass signal contract, registry and bounded JSON stdin/stdout CLI. Standard library only; no dependency installation. Fifteen shared mathematical fixtures are consumed independently by Python and TypeScript test sources. Optional game-specific detail field names can differ while the signal contract and independently checked quantities agree by design; parity has not yet been executed.
+The existing fifteen-game Python engine remains an offline reference and evaluation CLI, with a strict frozen dataclass signal contract and bounded JSON stdin/stdout interface. Football can use a separate FastAPI host using `python/requirements.txt` for extra provider probability validation and retrospective evaluation. It is optional; no local Python subprocess or generated forecast fallback is used. This cross-service integration has not been executed.
+
+## Football integration (unverified)
+
+The website and `@MinesLabSignalsBot` share the same API-Football fixture-detail loader and provider outcome percentages. The implementation includes current league/season selection, date-range fixtures and results, on-demand statistics, predictions when supplied by the account plan, manual-odds ticket estimates, a Redis-backed 90-call-per-day UTC cap, shared forecasts/tickets/results, and one-time website-to-private-Telegram linking. `/football`, `/weekly`, `/search`, `/prediction`, `/footballhistory`, `/link`, `/tickets`, and match-statistics callbacks expose the bot workflows. The hosted Python validator is optional; no result is fabricated when provider prediction data is unavailable.
+
+No live API-Football/Redis/Python/Telegram call has confirmed those paths. Website and Telegram outcome equality follows from shared code, but has not yet been tested end-to-end. API-Sports coverage and quota, Redis atomic counting, optional Python validation, and bot delivery remain blockers. Treat the feature as not release-ready until approved checks in [the football service guide](FOOTBALL_SERVICE.md) pass.
 
 ## Backend, result records and evaluation
 
@@ -72,17 +78,15 @@ Signals store their original inputs and timestamps before display/delivery. New 
 
 ## Available connections and missing access
 
-No live provider/result connection is established for any game. The existing optional Chrome companion remains presence-only. The new manual adapters accept genuine user-provided records but do not authenticate their origin. No endpoints, session replay, passwords, cookies or unauthorized data sources were invented.
+No live provider/result connection is established for the fifteen casino games. Football now has an API-Football adapter in source, but no provider account entitlement or live result is confirmed. The existing optional Chrome companion remains presence-only. The manual adapters accept genuine user-provided records but do not authenticate their origin. No browser session replay, passwords or cookies are used for data access.
 
 Every real adapter still needs the provider identity/version, stable game/mode IDs, official complete rules, a permitted read-only feed/export, documented authentication, authentic sanitized fixtures, state/round/completion semantics, rate/replay ordering and retention/relay permission. [Exact per-game gaps](GAME_RULES_V4.md) include Penalty grid/payout/terminal meanings and Speed & Cash car/market settlement grouping. No extra account access is needed to use the configured analysis already implemented.
 
 ## Tests written versus executed
 
-Passed locally:
-
 ~~~sh
 yarn lint
-node --test src/lib/analysis/analysis.test.cjs src/lib/analysis-records.test.cjs src/lib/telegram/validation.test.cjs
+node --test src/lib/analysis/analysis.test.cjs src/lib/analysis-records.test.cjs src/lib/telegram/validation.test.cjs src/lib/football/football.test.cjs
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=python python3 -m unittest discover -s python/tests
 node scripts/verify-python-parity.cjs
 node scripts/verify-telegram.cjs
@@ -90,17 +94,17 @@ node node_modules/typescript/bin/tsc --noEmit
 yarn build
 ~~~
 
-The loopback release check was `node scripts/verify-release.cjs http://127.0.0.1:3100` against a local `yarn start --port 3100`. It passed 34/34 checks. Lint reports seven warnings and no errors. No dependencies were installed.
+The commands above are prepared verification commands, not results for the current source. Earlier results apply only to the pre-football state. For current results, obtain approval and run each check; use `node scripts/verify-release.cjs http://127.0.0.1:3100` against a local `yarn start --port 3100` for the fifteen-game loopback suite. Football tests cover Python-service response contracts and API-Football envelope, fixture, league, and prediction parsing; they do not prove the live quota/cache or website/Telegram integration.
 
 ## Required environment and deployment steps
 
-Existing server-only settings: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET and APP_BASE_URL (public HTTPS). Optional production shared storage: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN together; TELEGRAM_STORE_NAMESPACE can isolate deployments. No Python service URL is required. No credentials or environment files were modified. Existing credential-like values were observed in .env.example and require operator review/rotation; they are deliberately not repeated here.
+Existing server-only settings: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET and APP_BASE_URL (public HTTPS). Football requires API_FOOTBALL_KEY, UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN; API_FOOTBALL_BASE_URL defaults to the API-Sports v3 origin. FOOTBALL_MODEL_API_URL and FOOTBALL_MODEL_API_TOKEN are optional and must be configured together. See [the configuration guide](FOOTBALL_SERVICE.md). `.env.example` was replaced with safe placeholders; if real values from its former contents were deployed or committed, treat them as exposed and rotate them through the hosting secret manager.
 
-No production deployment was performed or approved. Before production, resolve the explicit Next.js-to-Python runtime integration requirement (or confirm that the offline-reference architecture is acceptable), configure/verify authorized provider data if required, and test protected setup, live webhook health, and shared Redis persistence/retry across instances. No credentials were changed.
+No production deployment was performed or approved. Before production, approve and pass the current local checks, review/clean environment examples separately, configure the three hosting services, confirm provider access and market/odds coverage, and execute a separately approved credentialed staging check of protected endpoints, Telegram callbacks and Redis persistence across instances. No credentials were changed.
 
 ## Additional release checks not performed
 
-Live provider round imports, all Penalty steps and advanced game edge cases in the browser, corrupt/cross-tab browser storage, real Telegram delivery, Redis outages/leases across instances, and mobile/responsive accessibility remain untested. The offline Telegram suite covers the bot commands, menus, result recording, per-user state, retry behavior, and webhook validation only under mocked network/storage conditions.
+Live provider round imports, all Penalty steps and advanced game edge cases in the browser, corrupt/cross-tab browser storage, real Telegram delivery, Redis outages/leases across instances, football staging parity, and mobile/responsive accessibility remain untested. The offline Telegram suite covers bot commands, menus, result recording, per-user state, retry behavior, and webhook validation only under mocked network/storage conditions.
 
 ## Files created
 

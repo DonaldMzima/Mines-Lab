@@ -729,4 +729,48 @@ details.guide-status-list > summary { color: #c3d1ec; cursor: pointer; }
   .onboarding-actions > .primary-button, .onboarding-actions > .secondary-button { flex: 1; }
 }
 
+.football-workspace { display: grid; gap: 16px; }
+.football-workspace .page-heading { margin-bottom: 4px; }
+.football-panel { padding: 20px; }
+.football-panel h2 { margin: 4px 0; color: #edf2ff; font-size: 20px; }
+.football-panel h3 { margin: 0 0 12px; color: #dce5f3; font-size: 16px; }
+.football-panel p { color: #aebbd0; }
+.football-controls, .football-market-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-block: 14px; }
+.football-search { display: grid; gap: 6px; max-width: 420px; margin-block: 14px; color: #c4d2e7; font-size: 14px; }
+.football-search input { min-height: 42px; padding: 8px 10px; border: 1px solid #41536e; border-radius: 7px; background: #17263b; color: #edf2ff; }
+.football-controls label, .football-market-controls label { display: grid; gap: 6px; min-width: 0; color: #c4d2e7; font-size: 14px; }
+.football-controls :is(select, input), .football-market-controls :is(select, input) { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #41536e; border-radius: 7px; background: #17263b; color: #edf2ff; }
+.football-fixture-list, .football-ticket-list { display: grid; gap: 8px; padding: 0; list-style: none; }
+.football-fixture { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #2e3e58; border-radius: 8px; background: #121e31; }
+.football-fixture strong, .football-fixture small { display: block; }
+.football-fixture strong { color: #e4ebf8; }
+.football-fixture strong span { color: #8494af; font-weight: 500; }
+.football-fixture small, .football-muted { color: #9eacc2; }
+.football-badge { padding: 5px 9px; border: 1px solid #3e745f; border-radius: 20px; color: #a6dfc8; font-size: 12px; white-space: nowrap; }
+.football-primary { padding: 12px 14px; border-left: 3px solid #8594ff; border-radius: 5px; background: #17243b; color: #edf2ff !important; }
+.football-market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-block: 15px; }
+.football-market { padding: 14px; border: 1px solid #2e3e58; border-radius: 8px; background: #121e31; }
+.football-market p { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0; }
+.football-market p strong { color: #dce5f3; }
+.football-details { margin-top: 14px; padding: 12px; border: 1px solid #2e3e58; border-radius: 8px; color: #aebbd0; }
+.football-details summary { color: #d3def0; cursor: pointer; }
+.football-details ul { display: grid; gap: 5px; padding-left: 18px; max-height: 280px; overflow: auto; }
+.football-alert, .football-notice { padding: 11px 14px; border: 1px solid #8c6673; border-radius: 8px; background: #30212d; color: #ffd3df; overflow-wrap: anywhere; }
+.football-notice { border-color: #3e745f; background: #152c29; color: #c4f1de; }
+.football-ticket-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px; border: 1px solid #2e3e58; border-radius: 7px; color: #dce5f3; }
+.football-ticket-list button { border: 0; background: transparent; color: #ffabbc; cursor: pointer; }
+.football-ticket-estimate { display: grid; gap: 2px; align-content: center; color: #aebbd0; font-size: 14px; }
+.football-ticket-estimate strong { color: #edf2ff; font-size: 18px; }
+.football-saved-tickets { display: grid; gap: 8px; margin-top: 20px; }
+.football-saved-tickets details { padding: 11px; border: 1px solid #2e3e58; border-radius: 7px; color: #b6c4d9; }
+.football-saved-tickets summary { cursor: pointer; color: #dce5f3; }
+.football-link-code { display: grid; gap: 4px; padding: 12px; border: 1px dashed #6e80ae; border-radius: 8px; color: #dce5f3 !important; font-family: var(--font-geist-mono), monospace; overflow-wrap: anywhere; }
+.football-link-code small { color: #9eacc2; font-family: inherit; }
+.football-workspace a { color: #b8c7ff; }
+.football-workspace :is(button, select, input):disabled { opacity: .6; cursor: not-allowed; }
 
+@media (max-width: 640px) {
+  .football-panel { padding: 15px; }
+  .football-fixture { align-items: flex-start; flex-direction: column; }
+  .football-fixture button { width: 100%; }
+}

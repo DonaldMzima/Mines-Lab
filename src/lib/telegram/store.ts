@@ -8,6 +8,7 @@ import type { PenaltyMode } from "@/lib/penalty";
 import type { GameSignal } from "@/lib/analysis";
 import { parseAnalysisRecord, parseCompletedGameResult } from "@/lib/analysis-records";
 import type { AnalysisRecord, CompletedGameResult } from "@/lib/analysis-records";
+import type { FootballPeriod } from "@/lib/football/types";
 
 export interface TelegramUserState {
   chatId: number;
@@ -22,6 +23,8 @@ export interface TelegramUserState {
   gameConfigs: Partial<Record<GameId, Record<string, unknown>>>;
   signalHistory: Partial<Record<GameId, AnalysisRecord[]>>;
   completedResults: Partial<Record<GameId, CompletedGameResult[]>>;
+  footballCompetitionId?: number;
+  footballPeriod: FootballPeriod;
 }
 
 export class TelegramStoreError extends Error {
@@ -71,7 +74,7 @@ async function redis(command: (string | number)[]): Promise<unknown> {
   } catch { throw new TelegramStoreError(); }
 }
 function defaults(chatId: number): TelegramUserState {
-  return { chatId, selectedGame: "mines", mineCount: 3, suggestionCount: 3, penaltyMode: "turbo", notificationsEnabled: false, selectedTiles: [], rounds: [], gameConfigs: {}, signalHistory: {}, completedResults: {} };
+  return { chatId, selectedGame: "mines", mineCount: 3, suggestionCount: 3, penaltyMode: "turbo", notificationsEnabled: false, selectedTiles: [], rounds: [], gameConfigs: {}, signalHistory: {}, completedResults: {}, footballPeriod: "next7" };
 }
 /** Reject corrupt durable state instead of replacing it with empty history. Adds V4 fields to valid V3 records. */
 export function parseTelegramUser(value: unknown, chatId: number): TelegramUserState {
@@ -80,6 +83,8 @@ export function parseTelegramUser(value: unknown, chatId: number): TelegramUserS
     typeof value.notificationsEnabled !== "boolean" || !isPositionList(value.selectedTiles) || !Array.isArray(value.rounds) || value.rounds.length > MAX_HISTORY) throw new TelegramStoreError("Saved Telegram state is invalid; it was preserved.");
   const state = { ...defaults(chatId), ...value } as TelegramUserState;
   if (!isGameId(state.selectedGame) || !isRecord(state.gameConfigs) || !isRecord(state.signalHistory) || !isRecord(state.completedResults)) throw new TelegramStoreError("Saved Telegram state is invalid; it was preserved.");
+  if ((state.footballCompetitionId !== undefined && (!Number.isSafeInteger(state.footballCompetitionId) || state.footballCompetitionId <= 0)) ||
+      !["today", "tomorrow", "week", "weekend", "next7"].includes(state.footballPeriod)) throw new TelegramStoreError("Saved football settings are invalid; they were preserved.");
   for (const [id, config] of Object.entries(state.gameConfigs)) {
     if (!isGameId(id) || !isRecord(config) || JSON.stringify(config).length > 16_000) throw new TelegramStoreError("Saved game settings are invalid; they were preserved.");
   }

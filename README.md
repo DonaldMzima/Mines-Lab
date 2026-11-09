@@ -2,7 +2,7 @@
 
 The existing Next.js application now contains analysis modules for all 15 games, a shared web/Telegram signal contract, manual completed-result records, and an independent Python reference engine.
 
-**Local release checks passed on 8 November 2026; this is not a production release.** The production build, type-check, automated suites, local API/page checks and browser smoke checks passed. No live provider feed, production Redis, real Telegram request or deployment was tested.
+**The API-Football integration is not yet verified.** Earlier local checks covered the fifteen-game application before football was added; they do not establish that the current source builds or that football works. No live API-Football, Upstash, hosted Python, Telegram, or production deployment verification has been performed.
 
 ## Start here
 
@@ -10,6 +10,7 @@ The existing Next.js application now contains analysis modules for all 15 games,
 - [Game mechanics, evidence and exact blockers](docs/GAME_RULES_V4.md)
 - [Python reference calculations and JSON CLI](python/README.md)
 - [Telegram configuration and commands](docs/TELEGRAM_BOT.md)
+- [Football service and release verification](docs/FOOTBALL_SERVICE.md)
 - [Authorized data-source investigation](docs/REAL_DATA_INVESTIGATION.md)
 - [Penalty evidence boundary](docs/PENALTY_INTEGRATION_BLOCKERS.md)
 
@@ -23,19 +24,23 @@ All games show **Not connected**: no authorized provider result feed was establi
 
 ## Architecture
 
-Next.js remains the application layer. Browser, POST /api/analysis and Telegram use the same TypeScript calculations under src/lib/analysis. Legacy Mines suggestions are adapted into that contract without migrating or deleting stored records.
+Next.js remains the website and bot application layer. Browser, POST /api/analysis and Telegram use the same TypeScript calculations under src/lib/analysis. Legacy Mines suggestions are adapted into that contract without migrating or deleting stored records.
 
-Python is an offline standard-library reference/evaluation engine. All 15 modules are available through its registry and bounded JSON CLI. The Node parity verifier invokes that CLI and matched the shared fixtures, but the Next.js runtime does **not** call Python; direct Next.js-to-Python communication is not implemented or verified. There is no production Python service, fabricated trained model, or new runtime package.
+The fifteen-game Python reference engine remains an offline CLI. Football uses API-Football by API-Sports for current leagues, fixtures, final scores, on-demand statistics and provider prediction percentages. A Redis-backed atomic daily counter limits this adapter to 90 outbound calls per UTC day (the free plan is documented as 100/day); cache hits do not consume the counter. Provider predictions are checked against the response schema and percentage totals. The separate FastAPI service is optional: if configured it validates forecasts and enables evaluation; if not configured, valid API-Football probabilities can still be shown, while evaluation stays unavailable. No prediction is fabricated when provider data is absent.
 
-Telegram preserves @MinesLabSignalsBot, the webhook and command routes. Optional Upstash Redis REST settings provide shared server-side state and update claims. Without them, status explicitly says process-local storage is not durable. Browser and bot histories remain separate.
+The website and Telegram call the same API-Football fixture/detail logic. Saved forecasts, manual-odds tickets and one-time account links use the same Upstash Redis namespace. Bookmaker odds are not fetched or invented; ticket odds are explicitly entered manually. The local adapter request budget, live provider coverage, shared storage, Python validation, and website/Telegram parity have not been tested end-to-end.
 
-## Local verification performed
+Telegram preserves @MinesLabSignalsBot and its existing webhook. Its non-football state uses the existing Telegram storage configuration; football tickets and forecast history use Upstash. Browser and general game histories remain separate.
 
-These checks passed locally:
+## Local verification commands (not run for football changes)
+
+Earlier results apply only to the non-football app before the current football
+provider work. The current checks are:
 
 ~~~sh
 yarn lint
 node --test src/lib/analysis/analysis.test.cjs src/lib/analysis-records.test.cjs src/lib/telegram/validation.test.cjs
+node --test src/lib/football/football.test.cjs
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=python python3 -m unittest discover -s python/tests
 node scripts/verify-python-parity.cjs
 node scripts/verify-telegram.cjs
@@ -43,4 +48,4 @@ node node_modules/typescript/bin/tsc --noEmit
 yarn build
 ~~~
 
-The local release verifier also passed all 34 page/API checks against `yarn start --port 3100`; browser smoke exercised all 15 **Get Signal** buttons, settings/results persistence, conditional Blackjack/Hilo actions and the labeled Mines demo. Telegram verification used a mocked network only. No credentials were changed and no production deployment was performed. Deployment is not approved by these local checks.
+These are the prepared local commands, not results for the current football changes. Follow [FOOTBALL_SERVICE.md](docs/FOOTBALL_SERVICE.md) for the full check sequence, hosted-service prerequisites, and required approval gates. Do not treat earlier game-suite or browser-smoke results as verification of football.
