@@ -1,7 +1,7 @@
 import { claimTicketShare, getLinkedTelegramChatId, getTickets } from "./storage";
 import { sendTelegramMessage } from "../telegram/api";
 import { FootballProviderError } from "./errors";
-import { formatFootballTicket } from "./ticket-format";
+import { formatFootballTicket, splitFootballMessage } from "./ticket-format";
 
 /** Only called after an explicit website Send to Telegram action. */
 export async function sendSavedTicketToTelegram(browserId: string, ticketId: string): Promise<void> {
@@ -11,5 +11,5 @@ export async function sendSavedTicketToTelegram(browserId: string, ticketId: str
   const chatId = await getLinkedTelegramChatId(browserId);
   if (!chatId) throw new FootballProviderError("Create a one-time Telegram link below first. Older links may need to be renewed for website delivery; /tickets still reads saved records.", 409);
   if (!await claimTicketShare(browserId, ticketId)) throw new FootballProviderError("This ticket was recently shared. Wait one minute before sending it again.", 429, false, "rate_limited");
-  await sendTelegramMessage(chatId, formatFootballTicket(ticket));
+  for (const message of splitFootballMessage(formatFootballTicket(ticket))) await sendTelegramMessage(chatId, message);
 }

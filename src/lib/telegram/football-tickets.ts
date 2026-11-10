@@ -1,10 +1,10 @@
 import { sendTelegramMessage } from "./api";
 import { getFootballCompetitions } from "../football/service";
 import { cacheJson, cachedJson, getLinkedBrowserId, getTickets, FootballStorageError } from "../football/storage";
-import { generateFootballTicket, saveGeneratedFootballTicket } from "../football/ticket-generator";
+import { generateFootballTickets, saveGeneratedFootballTicket } from "../football/ticket-generator";
 import { FootballProviderError } from "../football/errors";
 import { periodRange, timezoneDate, validateDateRange } from "../football/dates";
-import { formatFootballTicket } from "../football/ticket-format";
+import { formatFootballTicket, splitFootballMessage } from "../football/ticket-format";
 import { TICKET_MARKETS, type TicketGenerationSettings, type TicketStrategy } from "../football/ticket-generation-types";
 import type { InlineKeyboardMarkup } from "./types";
 
@@ -19,9 +19,9 @@ const menu: InlineKeyboardMarkup = { inline_keyboard: [
 
 async function settings(chatId: number): Promise<TicketGenerationSettings> {
   const saved = await cachedJson<TicketGenerationSettings>(`football-ticket-settings:${chatId}`);
-  if (saved && Array.isArray(saved.competitionIds) && Array.isArray(saved.markets) && saved.dates && typeof saved.dates.start === "string" && typeof saved.dates.end === "string" && typeof saved.stakeZar === "number" && ["conservative", "balanced", "high-risk"].includes(saved.strategy)) return saved;
+  if (saved && Array.isArray(saved.competitionIds) && Array.isArray(saved.markets) && saved.dates && typeof saved.dates.start === "string" && typeof saved.dates.end === "string" && typeof saved.stakeZar === "number" && ["conservative", "balanced", "high-risk"].includes(saved.strategy)) return { matchesPerTicket: 4, ticketCount: 3, targetPayoutZar: 158, ...saved };
   const today = timezoneDate(new Date());
-  return { dates: { start: today, end: today }, competitionIds: [], stakeZar: 10, strategy: "conservative", markets: [] };
+  return { dates: { start: today, end: today }, competitionIds: [], stakeZar: 20, strategy: "balanced", markets: [], matchesPerTicket: 4, ticketCount: 3, targetPayoutZar: 158 };
 }
 async function updateSettings(chatId: number, patch: Partial<TicketGenerationSettings>) {
   const next = { ...await settings(chatId), ...patch };
@@ -31,7 +31,7 @@ async function updateSettings(chatId: number, patch: Partial<TicketGenerationSet
 export async function footballTicketMenu(chatId: number): Promise<void> {
   try {
     const value = await settings(chatId);
-    await sendTelegramMessage(chatId, `⚽ FOOTBALL TICKETS\n${value.dates.start} through ${value.dates.end}\nStake R${value.stakeZar.toFixed(2)} · ${value.strategy}\n${value.competitionIds.length} leagues · markets: ${value.markets.join(", ") || "Automatic"}\n\nGenerate a proposal, then choose Save. No bet is placed. Estimates derived from prices are not verified accuracy.`, menu);
+    await sendTelegramMessage(chatId, `⚽ FOOTBALL TICKETS\n${value.dates.start} through ${value.dates.end}\nStake R${value.stakeZar.toFixed(2)} · preference ${value.strategy}\n${value.matchesPerTicket} matches/ticket · ${value.ticketCount} tickets · target R${value.targetPayoutZar}\nEdit with /ticketmatches 4, /ticketcount 3, /tickettarget 158\n${value.competitionIds.length} leagues · markets: ${value.markets.join(", ") || "Automatic"}\n\nGenerate a proposal, then choose Save. No bet is placed. Estimates derived from prices are not verified accuracy.`, menu);
   } catch (error) { await report(chatId, error); }
 }
 async function report(chatId: number, error: unknown) {
@@ -55,19 +55,24 @@ async function leagues(chatId: number) {
 }
 async function generate(chatId: number) {
   const browserId = await linked(chatId);
-  const proposal = await generateFootballTicket(browserId, await settings(chatId));
-  if (!proposal.proposalId || !proposal.selections.length) { await sendTelegramMessage(chatId, [proposal.message, ...proposal.warnings].join("\n"), menu); return; }
-  const lines = ["⚽ PROPOSED TICKET — NOT SAVED", proposal.riskLabel];
-  for (const row of proposal.selections) lines.push("", `${row.homeTeam} vs ${row.awayTeam}`, `${row.kickoff} · ${row.market}: ${row.selection}`, `${row.bookmaker} · ${row.decimalOdds.toFixed(3)} · The Odds API`, `Retrieved ${row.oddsObservedAt}`, `Market-implied estimate ${(row.estimatedProbability * 100).toFixed(1)}%; not verified accuracy.`);
-  lines.push("", `Stake R${proposal.settings.stakeZar.toFixed(2)} · combined odds ${proposal.combinedOdds?.toFixed(3)}`, `Potential total return R${proposal.potentialReturnZar?.toFixed(2)}`, `Potential net profit R${proposal.potentialProfitZar?.toFixed(2)}`, "Every leg must win for the full displayed return. Draws/voids change settlement. Prices can change. No bet was placed.", ...proposal.warnings);
-  await sendTelegramMessage(chatId, lines.join("\n").slice(0, 3900), { inline_keyboard: [[{ text: "Save Ticket", callback_data: `ft:save:${proposal.proposalId}` }], [{ text: "Choose settings", callback_data: "ft:menu" }]] });
+  const result = await generateFootballTickets(browserId, await settings(chatId));
+  await sendTelegramMessage(chatId, [result.message, ...result.warnings].join("\n").slice(0, 3900), menu);
+  for (const proposal of result.tickets) {
+    const lines = ["⚽ PROPOSED TICKET " + proposal.ticketNumber + " — NOT SAVED", proposal.riskLabel];
+    for (const row of proposal.selections) lines.push("", row.homeTeam + " vs " + row.awayTeam, row.competition + " · " + row.kickoff, row.market + ": " + row.selection + " @ " + row.decimalOdds.toFixed(3), row.bookmaker + " · The Odds API", "Original: " + row.originalOdds?.value + " (" + row.originalOdds?.format + ")", "Market-implied " + (row.estimatedProbability * 100).toFixed(1) + "%; independent success probability unavailable.", row.selectionReason ?? "", row.riskExplanation ?? "Risk unassessed.");
+    lines.push("", "Stake R" + proposal.settings.stakeZar.toFixed(2) + " · combined odds " + proposal.combinedOdds?.toFixed(3), "Potential total return R" + proposal.potentialReturnZar?.toFixed(2), "Potential net profit R" + proposal.potentialProfitZar?.toFixed(2), proposal.targetAchieved ? "Requested full-win payout target reached." : "Requested payout target not reached; no weaker legs added.", "No guaranteed winnings. Draws/voids change payout. No bet placed.");
+    const chunks = splitFootballMessage(lines.join("\n"));
+    for (const chunk of chunks.slice(0, -1)) await sendTelegramMessage(chatId, chunk);
+    await sendTelegramMessage(chatId, chunks[chunks.length - 1], { inline_keyboard: [[{ text: "Save Ticket " + proposal.ticketNumber, callback_data: "ft:save:" + proposal.proposalId }], [{ text: "Choose settings", callback_data: "ft:menu" }]] });
+  }
 }
+
 async function savedTickets(chatId: number, id?: string) {
   const tickets = await getTickets(await linked(chatId));
   if (id) {
     const ticket = tickets.find(row => row.id === id);
     if (!ticket) throw new FootballProviderError("Ticket not found in your linked history.", 404);
-    await sendTelegramMessage(chatId, formatFootballTicket(ticket)); return;
+    for (const message of splitFootballMessage(formatFootballTicket(ticket))) await sendTelegramMessage(chatId, message); return;
   }
   await sendTelegramMessage(chatId, tickets.length ? "⚽ MY SAVED TICKETS\nChoose Ticket Details." : "No saved tickets yet.", { inline_keyboard: tickets.slice(0, 10).map(ticket => [{ text: `Ticket Details · R${ticket.stakeZar.toFixed(2)} · ${ticket.selections.length} legs`, callback_data: `ft:ticket:${ticket.id}` }]) });
 }
@@ -84,7 +89,7 @@ export async function handleFootballTicketCallback(chatId: number, data: string)
       await generate(chatId);
     } else if (data === "ft:dates") await sendTelegramMessage(chatId, "Choose a date or range with /ticketdates YYYY-MM-DD YYYY-MM-DD\nDates can extend into next month. Scheduled fixtures and prices must actually be available.", menu);
     else if (data === "ft:budget") await sendTelegramMessage(chatId, "Enter any ZAR budget with /ticketbudget 50", { inline_keyboard: [[10, 50, 100].map(amount => ({ text: `R${amount}`, callback_data: `ft:budget:${amount}` }))] });
-    else if (data === "ft:markets") await sendTelegramMessage(chatId, "Use /ticketmarkets auto or /ticketmarkets h2h,totals,btts,draw_no_bet,double_chance,team_totals\nOnly actual returned prices are eligible. Additional markets consume more free credits.", menu);
+    else if (data === "ft:markets") await sendTelegramMessage(chatId, "Use /ticketmarkets auto or comma-separated keys: " + TICKET_MARKETS.map(m => m.key).join(", ") + "\nOnly actual complete quotes qualify. Risk is unassessed; extra markets consume credits.", menu);
     else if (data === "ft:leagues") await leagues(chatId);
     else if (data === "ft:leaguesall" || data === "ft:leaguesclear") { const result = await getFootballCompetitions(); await updateSettings(chatId, { competitionIds: data === "ft:leaguesall" ? result.competitions.filter(row => row.available !== false).map(row => row.id) : [] }); await leagues(chatId); }
     else if (data === "ft:saved") await savedTickets(chatId);
@@ -95,7 +100,7 @@ export async function handleFootballTicketCallback(chatId: number, data: string)
       await updateSettings(chatId, { competitionIds: current.competitionIds.includes(id) ? current.competitionIds.filter(value => value !== id) : [...new Set([...current.competitionIds, id])] }); await leagues(chatId);
     } else if (/^ft:budget:(10|50|100)$/.test(data)) { await updateSettings(chatId, { stakeZar: Number(data.split(":")[2]) }); await footballTicketMenu(chatId); }
     else if (/^ft:strategy:(conservative|balanced|high-risk)$/.test(data)) { await updateSettings(chatId, { strategy: data.split(":")[2] as TicketStrategy }); await footballTicketMenu(chatId); }
-    else if (/^ft:save:[a-f0-9-]{36}$/.test(data)) { const result = await saveGeneratedFootballTicket(await linked(chatId), data.slice(8)); await sendTelegramMessage(chatId, result.duplicate ? "Ticket already saved." : "Ticket saved. It is also available on the linked website. No bet was placed."); await sendTelegramMessage(chatId, formatFootballTicket(result.ticket)); }
+    else if (/^ft:save:[a-f0-9-]{36}$/.test(data)) { const result = await saveGeneratedFootballTicket(await linked(chatId), data.slice(8)); await sendTelegramMessage(chatId, result.duplicate ? "Ticket already saved." : "Ticket saved. It is also available on the linked website. No bet was placed."); for (const message of splitFootballMessage(formatFootballTicket(result.ticket))) await sendTelegramMessage(chatId, message); }
     else if (/^ft:ticket:[a-f0-9-]{36}$/.test(data)) await savedTickets(chatId, data.slice(10));
     else throw new FootballProviderError("This ticket control is no longer available.", 400);
   } catch (error) { await report(chatId, error); }
@@ -103,9 +108,13 @@ export async function handleFootballTicketCallback(chatId: number, data: string)
 }
 
 export async function handleFootballTicketCommand(chatId: number, command: string, body: string): Promise<boolean> {
-  if (!["/footballticket", "/generateticket", "/ticketdates", "/ticketbudget", "/ticketstrategy", "/ticketmarkets", "/todaystickets", "/weekendtickets"].includes(command)) return false;
+  if (!["/ticketmatches", "/ticketcount", "/tickettarget", "/footballticket", "/generateticket", "/ticketdates", "/ticketbudget", "/ticketstrategy", "/ticketmarkets", "/todaystickets", "/weekendtickets"].includes(command)) return false;
   try {
-    if (command === "/footballticket") await footballTicketMenu(chatId);
+    if (["/ticketmatches", "/ticketcount", "/tickettarget"].includes(command)) {
+      const amount = Number(body), max = command === "/ticketmatches" ? 10 : command === "/ticketcount" ? 5 : 10000000;
+      if (!Number.isFinite(amount) || amount < 1 || amount > max || command !== "/tickettarget" && !Number.isInteger(amount)) throw new FootballProviderError("Enter a valid positive ticket setting.", 400);
+      await updateSettings(chatId, { [command === "/ticketmatches" ? "matchesPerTicket" : command === "/ticketcount" ? "ticketCount" : "targetPayoutZar"]: amount }); await footballTicketMenu(chatId);
+    } else if (command === "/footballticket") await footballTicketMenu(chatId);
     else if (command === "/generateticket") await generate(chatId);
     else if (command === "/todaystickets" || command === "/weekendtickets") await handleFootballTicketCallback(chatId, command === "/todaystickets" ? "ft:today" : "ft:weekend");
     else if (command === "/ticketdates") { const parts = body.trim().split(/\s+/); if (parts.length > 2) throw new FootballProviderError("Use /ticketdates YYYY-MM-DD YYYY-MM-DD.", 400); await updateSettings(chatId, { dates: validateDateRange({ start: parts[0], end: parts[1] ?? parts[0] }) }); await footballTicketMenu(chatId); }

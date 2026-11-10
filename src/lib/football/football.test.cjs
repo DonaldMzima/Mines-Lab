@@ -415,3 +415,23 @@ test("the default Football page renders the ticket flow and leaves analytics unm
   assert.ok(!html.includes("Multiclass Brier score"));
   assert.ok(!html.includes("No suitable ticket available")); // No fake result before generation.
 });
+
+ test("ticket batches fetch once, return only complete disjoint tickets and preserve server quotes", async () => {
+  const generator = require("./ticket-generator.ts"), fixtures = require("./football-data.ts"), odds = require("./odds-provider.ts"), storage = require("./storage.ts");
+  const { fixture, settings } = require("./ticket-generator.test.ts");
+  const original = { fixtures: fixtures.getFixturesInRange, odds: odds.getPricedCandidates, cache: storage.cacheJson };
+  let fixtureCalls = 0, oddsCalls = 0;
+  const records = new Map(), observed = new Date().toISOString();
+  fixtures.getFixturesInRange = async () => { fixtureCalls++; return [fixture]; };
+  odds.getPricedCandidates = async () => { oddsCalls++; return { warnings: [], candidates: Array.from({length: 9}, (_, i) => ({ fixtureId: fixture.id + i, kickoff: fixture.kickoff, homeTeam: "Offline home", awayTeam: "Offline away", competition: "Offline league", market: "Both teams to score", selection: "Yes", decimalOdds: 1.8, bookmaker: "Offline book", bookmakerKey: "offline", oddsSource: "The Odds API", providerOddId: null, providerEventId: "offline-" + i, providerMarketKey: "btts", oddsObservedAt: observed, oddsUpdatedAt: observed, estimatedProbability: .55, probabilityBasis: "market-implied", overround: .04 })) }; };
+  storage.cacheJson = async (key, value) => { records.set(key, value); };
+  try {
+    const result = await generator.generateFootballTickets("00000000-0000-4000-8000-000000000001", { ...settings, matchesPerTicket: 4, ticketCount: 3, stakeZar: 20, targetPayoutZar: 158, strategy: "balanced", markets: ["btts"] });
+    assert.equal(result.tickets.length, 2);
+    assert.equal(fixtureCalls, 1); assert.equal(oddsCalls, 1);
+    assert.equal(new Set(result.tickets.flatMap(t => t.selections.map(row => row.fixtureId))).size, 8);
+    assert.ok(result.tickets.every(t => t.selections.length === 4 && t.riskLabel.includes("unassessed")));
+    assert.equal(records.size, 2);
+    assert.deepEqual([...records.values()].map(t => t.ticketNumber), [1, 2]);
+  } finally { fixtures.getFixturesInRange = original.fixtures; odds.getPricedCandidates = original.odds; storage.cacheJson = original.cache; }
+});

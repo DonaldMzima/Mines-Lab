@@ -1,3 +1,4 @@
+import { normalizeOdds } from "./odds-normalization";
 import { createHash } from "node:crypto";
 import { cacheJson, cachedJson, reserveOddsCredits } from "./storage";
 import { FootballProviderError } from "./errors";
@@ -67,13 +68,14 @@ export function parseOddsEvent(value: unknown, fixtures: FootballFixture[], spor
     const resultOutcomes = result.filter((o: unknown) => record(o) && typeof o.name === "string" && validPrice(o.price) && side(o.name));
     const resultSum = resultOutcomes.reduce((sum: number, o: Record<string, unknown>) => sum + 1 / Number(o.price), 0);
     const resultUpdated = record(h2h) && typeof h2h.last_update === "string" ? h2h.last_update : typeof bookmaker.last_update === "string" ? bookmaker.last_update : "";
-    const completeResult = resultOutcomes.length === 3 && new Set(resultOutcomes.map((o: Record<string, unknown>) => side(String(o.name)))).size === 3 && Number.isFinite(Date.parse(resultUpdated)) && now.getTime() - Date.parse(resultUpdated) <= 6 * 3_600_000 && Date.parse(resultUpdated) <= now.getTime() + 60_000;
+    const completeResult = resultOutcomes.length === 3 && new Set(resultOutcomes.map((o: Record<string, unknown>) => side(String(o.name)))).size === 3 && Number.isFinite(Date.parse(resultUpdated)) && now.getTime() - Date.parse(resultUpdated) <= 15 * 60_000 && Date.parse(resultUpdated) <= now.getTime() + 60_000;
     const resultProbability = (which: string) => completeResult ? (1 / Number(resultOutcomes.find((o: Record<string, unknown>) => side(String(o.name)) === which)?.price)) / resultSum : 0;
     for (const market of bookmaker.markets) {
       if (!record(market) || typeof market.key !== "string" || !selectedMarkets.includes(market.key as TicketMarketKey) || !Array.isArray(market.outcomes)) continue;
       const updatedAt = typeof market.last_update === "string" ? market.last_update : typeof bookmaker.last_update === "string" ? bookmaker.last_update : "";
-      if (!Number.isFinite(Date.parse(updatedAt)) || now.getTime() - Date.parse(updatedAt) > 6 * 3_600_000 || Date.parse(updatedAt) > now.getTime() + 60_000) continue;
+      if (!Number.isFinite(Date.parse(updatedAt)) || now.getTime() - Date.parse(updatedAt) > 15 * 60_000 || Date.parse(updatedAt) > now.getTime() + 60_000) continue;
       const outcomes = market.outcomes.filter((o: unknown): o is Record<string, unknown> => record(o) && typeof o.name === "string" && validPrice(o.price));
+      if (outcomes.length !== market.outcomes.length) continue;
       const groups = new Map<string, Record<string, unknown>[]>();
       for (const outcome of outcomes) {
         const group = `${outcome.description ?? ""}:${outcome.point ?? ""}`;
@@ -82,7 +84,7 @@ export function parseOddsEvent(value: unknown, fixtures: FootballFixture[], spor
       for (const group of groups.values()) {
         const total = group.reduce((sum, outcome) => sum + 1 / Number(outcome.price), 0);
         const labels = group.map(o => String(o.name).toLowerCase());
-        const exclusive = market.key === "h2h" ? completeResult && group.length === 3 : market.key === "btts" ? group.length === 2 && labels.includes("yes") && labels.includes("no") : ["totals", "team_totals"].includes(market.key) ? group.length === 2 && labels.includes("over") && labels.includes("under") && typeof group[0].point === "number" && group[0].point >= 0 && group[0].point <= 20 && group[0].point % 1 === .5 : false;
+        const exclusive = ["h2h", "h2h_3_way_h1", "h2h_3_way_h2"].includes(market.key) ? group.length === 3 && new Set(group.map(o => side(String(o.name)))).size === 3 && group.every(o => side(String(o.name)) !== null) : ["btts", "btts_h1"].includes(market.key) ? group.length === 2 && labels.includes("yes") && labels.includes("no") : ["totals", "team_totals", "alternate_totals", "alternate_team_totals", "totals_h1", "totals_h2"].includes(market.key) ? group.length === 2 && labels.includes("over") && labels.includes("under") && typeof group[0].point === "number" && group[0].point >= 0 && group[0].point <= 20 && group[0].point % 1 === .5 : false;
         if (!exclusive && !["draw_no_bet", "double_chance"].includes(market.key)) continue;
         const overround = exclusive ? total - 1 : market.key === "draw_no_bet" ? Math.max(total - 1, resultSum - 1) : resultSum - 1;
         if (!Number.isFinite(overround) || overround < -.01 || overround > .15) continue;
@@ -102,15 +104,15 @@ export function parseOddsEvent(value: unknown, fixtures: FootballFixture[], spor
             if (!pair) continue;
             probability = resultProbability(pair[0]) + resultProbability(pair[1]);
           }
-          if (market.key === "team_totals" && (typeof outcome.description !== "string" || ![normalize(String(value.home_team)), normalize(String(value.away_team))].includes(normalize(outcome.description)))) continue;
+          if (["team_totals", "alternate_team_totals"].includes(market.key) && (typeof outcome.description !== "string" || ![normalize(String(value.home_team)), normalize(String(value.away_team))].includes(normalize(outcome.description)))) continue;
           if (!Number.isFinite(probability) || probability <= 0 || probability >= 1) continue;
           const line = typeof outcome.point === "number" ? ` ${outcome.point}` : "";
           const team = typeof outcome.description === "string" ? ` · ${outcome.description}` : "";
           selections.push({ fixtureId: fixture.id, kickoff: fixture.kickoff, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam, competition: fixture.competition.name,
-            market: ({ h2h: "Full-time result", totals: "Total goals", btts: "Both teams to score", double_chance: "Double chance", draw_no_bet: "Draw no bet", team_totals: "Team goals" } as Record<string, string>)[market.key] + team,
-            selection: String(outcome.name) + line, decimalOdds: Number(outcome.price), bookmaker: bookmaker.title, bookmakerKey: bookmaker.key,
+            market: ({ h2h: "Full-time result", totals: "Total goals", btts: "Both teams to score", double_chance: "Double chance", draw_no_bet: "Draw no bet", team_totals: "Team goals", alternate_totals: "Alternate total goals", alternate_team_totals: "Alternate team goals", h2h_3_way_h1: "First-half result", h2h_3_way_h2: "Second-half result", totals_h1: "First-half goals", totals_h2: "Second-half goals", btts_h1: "First-half both teams to score" } as Record<string, string>)[market.key] + team,
+            selection: String(outcome.name) + line, ...normalizeOdds(outcome.price, "decimal", "The Odds API v4 oddsFormat=decimal"), bookmaker: bookmaker.title, bookmakerKey: bookmaker.key,
             oddsSource: "The Odds API", providerOddId: null, oddsObservedAt: retrievedAt, oddsUpdatedAt: updatedAt,
-            providerEventId: value.id, providerMarketKey: market.key, estimatedProbability: probability, probabilityBasis: "market-implied", pushProbability, overround });
+            providerEventId: value.id, providerMarketKey: market.key, estimatedProbability: probability, probabilityBasis: "market-implied", pushProbability, overround, selectionReason: "Complete fresh same-bookmaker outcome group; ranked by margin-adjusted market-implied probability, not independent evidence of value.", riskExplanation: "Risk unassessed: no calibrated team-statistics model or sample-size evidence. Bookmaker rules govern regulation/half-time, postponements and voids; draw-no-bet draws return stake." });
         }
       }
     }
@@ -138,7 +140,15 @@ export async function getPricedCandidates(fixtures: FootballFixture[], dates: Fo
     for (const event of snapshot.data) {
       candidates.push(...parseOddsEvent(event, group, sport, snapshot.retrievedAt, markets));
       if (!extended.length || !record(event) || !matchingFixture(event, group, sport) || typeof event.id !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(event.id)) continue;
-      const requested = [...new Set<TicketMarketKey>(["h2h", ...extended])];
+      if (budget < 2) { warnings.push("Market discovery stopped at the per-generation credit budget; coverage is partial."); continue; }
+      budget -= 1;
+      const discovery = await oddsGet(`/sports/${sport}/events/${event.id}/markets`, { regions: "uk", dateFormat: "iso" }, 1);
+      if (!record(discovery.data) || discovery.data.id !== event.id || !Array.isArray(discovery.data.bookmakers)) throw new FootballProviderError("Invalid event market catalogue.", 502);
+      const offered = new Set(discovery.data.bookmakers.flatMap(book => record(book) && Array.isArray(book.markets) ? book.markets.flatMap(m => record(m) && typeof m.key === "string" ? [m.key] : []) : []));
+      const available = extended.filter(key => offered.has(key));
+      if (available.length < extended.length) warnings.push(`Some requested ${code} markets were not recently offered by the configured UK bookmakers. Coverage is partial.`);
+      for (let offset = 0; offset < available.length; offset += 7) {
+      const requested = [...new Set<TicketMarketKey>(["h2h", ...available.slice(offset, offset + 7)])];
       if (budget < requested.length) { warnings.push("Additional market queries stopped at the per-generation credit budget; not every fixture was priced."); continue; }
       budget -= requested.length;
       try {
@@ -147,6 +157,7 @@ export async function getPricedCandidates(fixtures: FootballFixture[], dates: Fo
       } catch (error) {
         if (!(error instanceof FootballProviderError) || error.status !== 422) throw error;
         warnings.push(`Additional requested markets are not available for a ${code} fixture. No odds were derived.`);
+      }
       }
     }
   }

@@ -1,22 +1,25 @@
+import { splitFootballMessage } from "./ticket-format";
+import { normalizeOdds } from "./odds-normalization";
+import { TICKET_MARKETS } from "./ticket-generation-types";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { validateDateRange } from "./dates";
 import { parseOddsEvent } from "./odds-provider";
-import { calculateTicketPayout, parseTicketSettings, rankTicketCandidates } from "./ticket-generator";
+import { calculateTicketPayout, parseTicketSettings, rankTicketCandidates, planTicketGroups } from "./ticket-generator";
 import type { FootballFixture } from "./types";
 import type { PricedSelection, TicketMarketKey } from "./ticket-generation-types";
 
 const now = new Date("2099-01-01T00:00:00Z");
 export const fixture: FootballFixture = { id: 1_000_000_123, source: "football-data.org", competition: { id: 1_000_002_021, code: "PL", name: "Premier League", country: "England", season: 2098 }, homeTeam: "Home FC", awayTeam: "Away FC", homeTeamAliases: ["Home FC", "Home"], awayTeamAliases: ["Away FC", "Away"], kickoff: "2099-01-02T12:00:00Z", state: "TIMED", stateCode: "TIMED", isUpcoming: true, isCompleted: false, predictable: false, homeScore: null, awayScore: null };
 export const event = () => ({ id: "offline-event-id", sport_key: "soccer_epl", commence_time: fixture.kickoff, home_team: "Home", away_team: "Away", bookmakers: [{ key: "book-a", title: "Book A", last_update: now.toISOString(), markets: [{ key: "h2h", outcomes: [{ name: "Home", price: 1.4 }, { name: "Draw", price: 5 }, { name: "Away", price: 9 }] }] }] });
-export const settings = { dates: { start: "2099-01-01", end: "2099-02-10" }, competitionIds: [fixture.competition.id], stakeZar: 10, strategy: "conservative", markets: ["h2h"] };
+export const settings = { dates: { start: "2099-01-01", end: "2099-02-10" }, competitionIds: [fixture.competition.id], matchesPerTicket: 1, ticketCount: 1, targetPayoutZar: 158, stakeZar: 10, strategy: "conservative", markets: ["h2h"] };
 const priced = (id: number, bookmaker = "Book A", probability = .7, price = 1.4): PricedSelection => ({ fixtureId: id, kickoff: fixture.kickoff, homeTeam: fixture.homeTeam, awayTeam: fixture.awayTeam, competition: fixture.competition.name, market: "Full-time result", selection: "Home", decimalOdds: price, bookmaker, oddsSource: "The Odds API", providerOddId: null, providerEventId: String(id), providerMarketKey: "h2h", oddsObservedAt: now.toISOString(), oddsUpdatedAt: now.toISOString(), estimatedProbability: probability, probabilityBasis: "market-implied", overround: .04 });
 
 test("custom calendars accept next-month ranges and reject rollover, reversed, past and oversized ranges", () => {
   assert.deepEqual(validateDateRange({ start: "2099-01-27", end: "2099-02-15" }, now), { start: "2099-01-27", end: "2099-02-15" });
   for (const range of [{ start: "2099-02-30", end: "2099-03-03" }, { start: "2099-02-01", end: "2099-01-01" }, { start: "2098-12-31", end: "2099-01-01" }, { start: "2099-01-01", end: "2099-12-01" }]) assert.throws(() => validateDateRange(range, now));
   assert.deepEqual(parseTicketSettings({ ...settings, competitionIds: [fixture.competition.id, fixture.competition.id] }).competitionIds, [fixture.competition.id]);
-  assert.deepEqual(parseTicketSettings({ ...settings, markets: [] }).markets, ["h2h", "totals"]);
+  assert.deepEqual(parseTicketSettings({ ...settings, markets: [] }).markets, TICKET_MARKETS.map(market => market.key));
   for (const change of [{ stakeZar: 0 }, { strategy: "guaranteed" }, { markets: ["invented"] }, { competitionIds: [39] }]) assert.throws(() => parseTicketSettings({ ...settings, ...change }));
 });
 
@@ -75,4 +78,57 @@ test("accumulator returns include stake, net profit and correct cent rounding", 
   assert.throws(() => calculateTicketPayout(0, [2]));
   assert.throws(() => calculateTicketPayout(100, []));
   assert.throws(() => calculateTicketPayout(100, [NaN]));
+});
+
+test("odds formats are explicit; fractional profit quotes below one are not decimal prices", () => {
+  assert.equal(normalizeOdds(0.5, "fractional", "explicit test contract").decimalOdds, 1.5);
+  assert.equal(normalizeOdds("1/2", "fractional", "test").decimalOdds, 1.5);
+  assert.equal(normalizeOdds(-200, "american", "test").decimalOdds, 1.5);
+  assert.equal(normalizeOdds(150, "american", "test").decimalOdds, 2.5);
+  assert.equal(normalizeOdds(1.5, "decimal", "test").originalOdds.value, 1.5);
+  for (const value of [0.5, 0, NaN, Infinity, "1/2", ""]) assert.throws(() => normalizeOdds(value, "decimal", "test"));
+  assert.throws(() => normalizeOdds("1/0", "fractional", "test"));
+});
+test("requested four-leg batches return fewer tickets without padding or repeated fixtures", () => {
+  const input = { dates: { start: "2099-01-01", end: "2099-01-02" }, competitionIds: [fixture.competition.id], stakeZar: 20, strategy: "balanced" as const, markets: ["h2h" as const], matchesPerTicket: 4, ticketCount: 3, targetPayoutZar: 158 };
+  const candidates = Array.from({ length: 9 }, (_, index) => priced(index + 1));
+  const groups = planTicketGroups(candidates, input, now);
+  assert.equal(groups.length, 2);
+  assert.ok(groups.every(rows => rows.length === 4));
+  assert.equal(new Set(groups.flat().map(row => row.fixtureId)).size, 8);
+  assert.deepEqual(planTicketGroups(candidates.slice(0, 3), input, now), []);
+  assert.deepEqual(planTicketGroups(candidates, { ...input, targetPayoutZar: 999999 }, now), groups);
+});
+test("half-period and alternate goals preserve market identity and reject incomplete lines", () => {
+  const value = { ...event(), bookmakers: [{ ...event().bookmakers[0], markets: [
+    { key: "h2h_3_way_h1", outcomes: [{ name: "Home", price: 1.4 }, { name: "Draw", price: 5 }, { name: "Away", price: 9 }] },
+    { key: "totals_h2", outcomes: [{ name: "Over", point: 1.5, price: 1.8 }, { name: "Under", point: 1.5, price: 2.1 }] },
+    { key: "alternate_totals", outcomes: [{ name: "Over", point: 3.5, price: 1.8 }, { name: "Under", point: 3.5, price: 2.1 }] }
+  ] }] };
+  const rows = parseOddsEvent(value, [fixture], "soccer_epl", now.toISOString(), ["h2h_3_way_h1", "totals_h2", "alternate_totals"], now);
+  assert.equal(rows.length, 7);
+  assert.equal(rows[0].originalOdds?.format, "decimal");
+  assert.ok(rows.every(row => row.riskExplanation?.includes("unassessed")));
+});
+
+test("new period markets reject stale updates and unimplemented market keys", () => {
+  const keys: TicketMarketKey[] = ["h2h_3_way_h2", "totals_h1", "btts_h1", "alternate_team_totals"];
+  const value = { ...event(), bookmakers: [{ ...event().bookmakers[0], markets: [
+    { key: "h2h_3_way_h2", outcomes: [{ name: "Home", price: 1.4 }, { name: "Draw", price: 5 }, { name: "Away", price: 9 }] },
+    { key: "totals_h1", outcomes: [{ name: "Over", point: 1.5, price: 1.8 }, { name: "Under", point: 1.5, price: 2.1 }] },
+    { key: "btts_h1", outcomes: [{ name: "Yes", price: 1.8 }, { name: "No", price: 2.1 }] },
+    { key: "alternate_team_totals", outcomes: [{ name: "Over", description: "Away", point: 1.5, price: 1.8 }, { name: "Under", description: "Away", point: 1.5, price: 2.1 }] }
+  ] }] };
+  assert.equal(parseOddsEvent(value, [fixture], "soccer_epl", now.toISOString(), keys, now).length, 9);
+  value.bookmakers[0].last_update = "2098-12-31T23:40:00Z";
+  assert.deepEqual(parseOddsEvent(value, [fixture], "soccer_epl", now.toISOString(), keys, now), []);
+  assert.ok(!TICKET_MARKETS.some(m => String(m.key) === "correct_score"));
+});
+
+test("large Telegram tickets preserve every line including final payout", () => {
+  const text = Array.from({length: 100}, (_, i) => "Selection " + i + " ".repeat(40)).join("\n") + "\nPotential total return R158.00";
+  const chunks = splitFootballMessage(text);
+  assert.ok(chunks.length > 1);
+  assert.ok(chunks.every(chunk => chunk.length <= 3500));
+  assert.equal(chunks.join("\n"), text);
 });

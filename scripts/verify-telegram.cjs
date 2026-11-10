@@ -504,9 +504,9 @@ async function runTelegramVerification(options = {}) {
       const footballStorage = require(path.join(projectRoot, "src/lib/football/storage.ts"));
       const { POST: generateRoute } = require(path.join(projectRoot, "src/app/api/football/generate/route.ts"));
       const { POST: saveRoute } = require(path.join(projectRoot, "src/app/api/football/tickets/route.ts"));
-      const original = { generate: generator.generateFootballTicket, save: generator.saveGeneratedFootballTicket, cached: footballStorage.cachedJson, cache: footballStorage.cacheJson, link: footballStorage.getLinkedBrowserId };
+      const original = { generate: generator.generateFootballTickets, save: generator.saveGeneratedFootballTicket, cached: footballStorage.cachedJson, cache: footballStorage.cacheJson, link: footballStorage.getLinkedBrowserId };
       const browserId = "00000000-0000-4000-8000-000000000001", proposalId = "00000000-0000-4000-8000-000000000002";
-      const input = { dates: { start: "2099-01-01", end: "2099-02-10" }, competitionIds: [1000002021], stakeZar: 50, strategy: "conservative", markets: ["h2h"] };
+      const input = { dates: { start: "2099-01-01", end: "2099-02-10" }, competitionIds: [1000002021], matchesPerTicket: 1, ticketCount: 1, targetPayoutZar: 158, stakeZar: 50, strategy: "conservative", markets: ["h2h"] };
       const selections = [{ fixtureId: 1000000123, homeTeam: "Home FC", awayTeam: "Away FC", kickoff: "2099-01-02T12:00:00Z", competition: "Premier League", market: "Full-time result", selection: "Home", decimalOdds: 1.4, bookmaker: "Book A", oddsSource: "The Odds API", providerOddId: null, oddsObservedAt: new Date().toISOString(), oddsUpdatedAt: new Date().toISOString(), estimatedProbability: .7, probabilityBasis: "market-implied", providerEventId: "offline-event", providerMarketKey: "h2h", overround: .04 }];
       const proposal = { proposalId, settings: input, selections, combinedOdds: 1.4, potentialReturnZar: 70, potentialProfitZar: 20, estimatedAllWinProbability: .7, riskLabel: "Conservative; no bet is safe.", message: "One supported selection.", warnings: [], generatedAt: new Date().toISOString(), expiresAt: new Date(clockMs + 600000).toISOString(), methodology: "Market-implied estimates; not verified accuracy." };
       const generated = [], saved = [], cache = new Map();
@@ -514,23 +514,23 @@ async function runTelegramVerification(options = {}) {
       footballStorage.cachedJson = async key => cache.get(key) ?? null;
       footballStorage.cacheJson = async (key, value) => { cache.set(key, value); };
       footballStorage.getLinkedBrowserId = async () => browserId;
-      generator.generateFootballTicket = async (browser, value) => { generated.push({ browser, settings: generator.parseTicketSettings(value) }); return proposal; };
+      generator.generateFootballTickets = async (browser, value) => { generated.push({ browser, settings: generator.parseTicketSettings(value) }); return { tickets: [{ ...proposal, ticketNumber: 1 }], message: "One supported ticket.", warnings: [] }; };
       generator.saveGeneratedFootballTicket = async (browser, id) => { saved.push({ browser, id }); return { ticket: { id, createdAt: new Date().toISOString(), stakeZar: 50, selections, combinedOdds: 1.4, potentialReturnZar: 70, potentialProfitZar: 20, fingerprint: "a".repeat(64) }, duplicate: false }; };
       const post = (url, body) => new Request("https://offline.invalid" + url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       try {
         const web = await (await generateRoute(post("/api/football/generate", { browserId, ...input }))).json();
-        equal(web.selections[0].decimalOdds, 1.4);
+        equal(web.tickets[0].selections[0].decimalOdds, 1.4);
         await command(196001, "/ticketdates 2099-01-01 2099-02-10");
         await command(196001, "/ticketbudget 50");
         const text = lastText(await command(196001, "/generateticket"));
-        truth(text.includes("PROPOSED TICKET — NOT SAVED"));
-        truth(text.includes("Book A · 1.400"));
+        truth(text.includes("PROPOSED TICKET 1 — NOT SAVED"));
+        truth(text.includes("Home @ 1.400"));
         truth(text.includes("Potential total return R70.00"));
         same(generated[0], generated[1]);
         equal((await saveRoute(post("/api/football/tickets", { browserId, proposalId }))).status, 201);
         await press(196001, "ft:save:" + proposalId);
         same(saved[0], saved[1]);
-      } finally { generator.generateFootballTicket = original.generate; generator.saveGeneratedFootballTicket = original.save; footballStorage.cachedJson = original.cached; footballStorage.cacheJson = original.cache; footballStorage.getLinkedBrowserId = original.link; }
+      } finally { generator.generateFootballTickets = original.generate; generator.saveGeneratedFootballTicket = original.save; footballStorage.cachedJson = original.cached; footballStorage.cacheJson = original.cache; footballStorage.getLinkedBrowserId = original.link; }
     });
 
     return { suite: "telegram-offline-integration", cases: cases.length, assertions, games: GAME_IDS.length, network: "mocked only; no real requests", storage: "process-local test state", results: cases };

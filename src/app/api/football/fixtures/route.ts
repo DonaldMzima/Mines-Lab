@@ -1,3 +1,5 @@
+import { connection } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { listFootballFixtures } from "@/lib/football/service";
 import { getHistoricalFootballFixtures } from "@/lib/football/provider";
 import { footballErrorResponse } from "@/lib/football/http";
@@ -6,6 +8,7 @@ import type { FootballPeriod } from "@/lib/football/types";
 const periods = new Set<FootballPeriod>(["today", "tomorrow", "week", "weekend", "next7"]);
 
 export async function GET(request: Request) {
+  await connection();
   try {
     const url = new URL(request.url);
     if (url.searchParams.get("provider") === "api-football") {
@@ -19,6 +22,7 @@ export async function GET(request: Request) {
     const result = await listFootballFixtures(periodValue as FootballPeriod, competitionIds);
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    unstable_rethrow(error);
     return footballErrorResponse(error);
   }
 }

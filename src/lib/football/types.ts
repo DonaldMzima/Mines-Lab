@@ -103,6 +103,9 @@ export interface FootballTicketSelection {
   estimatedProbability?: number;
   probabilityBasis?: "market-implied";
   pushProbability?: number;
+  originalOdds?: { value: string | number; format: "decimal" | "fractional" | "american"; source: string };
+  selectionReason?: string;
+  riskExplanation?: string;
 }
 
 export interface FootballTicket {
@@ -115,5 +118,7 @@ export interface FootballTicket {
   potentialProfitZar: number;
   fingerprint: string;
   riskLabel?: string;
+  ticketNumber?: number;
+  targetPayoutZar?: number;
   methodology?: string;
 }
