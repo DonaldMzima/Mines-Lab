@@ -1,4 +1,4 @@
-# Mines Lab V4
+# The Winning Edge V4
 
 The existing Next.js application now contains analysis modules for all 15 games, a shared web/Telegram signal contract, manual completed-result records, and native TypeScript analysis and evaluation.
 

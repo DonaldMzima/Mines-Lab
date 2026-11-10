@@ -72,7 +72,7 @@ async function runReleaseVerification(options = {}) {
         const { response, raw } = await request(route);
         assert.equal(response.status, 200);
         assert.ok(response.headers.get("content-type")?.includes("text/html"));
-        assert.match(raw, /Mines Lab/i);
+        assert.match(raw, /The Winning Edge/i);
         assert.match(raw, /<html/i);
       });
     }

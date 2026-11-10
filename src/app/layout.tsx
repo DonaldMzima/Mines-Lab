@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mines Lab | Game Analysis",
+  title: "The Winning Edge | Game Analysis",
   description:
-    "Analyze Mines signals and API-Football-powered fixtures, predictions, results, and tickets.",
+    "The Winning Edge: game analysis, football fixtures, results, and ticket planning.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -55,7 +55,7 @@ export function ConnectionSetupGuide({ onDone, onImport }: ConnectionSetupGuideP
         <p className="guide-status">Step {step + 1} of {stages.length}</p>
         {step === 0 && <>
           <h2 id="connection-guide-title" ref={heading} tabIndex={-1} data-autofocus>Connect your game data</h2>
-          <p>Mines Lab can analyze completed Mines rounds and compare your saved tile suggestions with their results.</p>
+          <p>The Winning Edge can analyze completed Mines rounds and compare your saved tile suggestions with their results.</p>
           <div className="guide-callout"><strong>{guidance.label}</strong><p>{guidance.description}</p></div>
           <p>The supported game is <strong>1win Mines by 1win Games</strong>. Live access needs the provider’s permission and a supported connector in this app.</p>
           <p>Never enter a gambling password, browser cookie, or session token. This guide does not need those details.</p>
@@ -71,7 +71,7 @@ export function ConnectionSetupGuide({ onDone, onImport }: ConnectionSetupGuideP
             <div><dt>Connection details</dt><dd>{documented ? "Configured by the application" : "Waiting for official requirements"}</dd></div>
             <div><dt>Supported mode</dt><dd>{providerConfig.supportedMode === "both" ? "Demo and real modes" : providerConfig.supportedMode === "real" ? "Real mode" : providerConfig.supportedMode === "demo" ? "Demo mode" : "Not confirmed"}</dd></div>
           </dl>
-          {!connection.available && <div className="guide-callout"><strong>What is needed before connecting</strong><p>The provider and the app’s developer need to finish these steps. You do not need to supply private account details.</p><ul><li>Permission for Mines Lab to read completed game results.</li><li>An official connection address, sign-in method, and description of the available game updates.</li><li>A working read-only connector with confirmed game modes and request limits.</li></ul><details><summary>Exact missing requirements</summary><ul>{connection.unavailableReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></details></div>}
+          {!connection.available && <div className="guide-callout"><strong>What is needed before connecting</strong><p>The provider and the app’s developer need to finish these steps. You do not need to supply private account details.</p><ul><li>Permission for The Winning Edge to read completed game results.</li><li>An official connection address, sign-in method, and description of the available game updates.</li><li>A working read-only connector with confirmed game modes and request limits.</li></ul><details><summary>Exact missing requirements</summary><ul>{connection.unavailableReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></details></div>}
           {connection.available && <p>Source details are ready for a check. This does not yet show that round data can be read or that automatic tracking works.</p>}
           <details className="guide-details"><summary>Game identifiers and connection method</summary><dl>
             <div><dt>Game ID</dt><dd>{providerConfig.gameId}</dd></div>

@@ -805,3 +805,328 @@ details.guide-status-list > summary { color: #c3d1ec; cursor: pointer; }
   .football-fixture-actions button { flex: 1; width: auto; }
   .football-league-options { grid-template-columns: 1fr; }
 }
+
+/* Portfolio workspace: presentation only; existing control/state classes retained. */
+:root { --background: #0c0e14; --surface: #141720; --surface-raised: #1a1e2a; --border: #2a2f40; --text: #edf0f8; --muted: #a2abc0; --dim: #8993a9; --accent: #a293ff; }
+body { font-family: var(--font-geist-sans), Arial, sans-serif; }
+.lab-shell { --lab-sidebar-width: 248px; --lab-card: #141720; --lab-input: #10131c; --lab-subtle: #1b1f2c; --lab-accent-soft: #a293ff16; --lab-accent-text: #c8beff; display: grid; grid-template-columns: var(--lab-sidebar-width) minmax(0, 1fr); background: var(--background); color: var(--text); }
+.lab-shell.is-collapsed { --lab-sidebar-width: 88px; }
+.lab-sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 28px 16px 16px; border-right: 1px solid var(--border); background: var(--lab-card); overflow-y: auto; }
+.lab-brand { display: flex; align-items: center; gap: 12px; margin: 0 8px 30px; color: var(--text); text-decoration: none; }
+.lab-brand-initials { font-size: 17px; letter-spacing: -1px; font-weight: 800; color: var(--lab-accent-text); }
+.lab-brand-copy { font-size: 21px; font-weight: 720; letter-spacing: -.8px; line-height: 1.2; }
+.lab-brand-copy > span { font-weight: 400; color: var(--muted); margin-left: 4px; }
+.lab-brand-copy small { display: block; margin-top: 7px; font-size: 8px; letter-spacing: 1.8px; font-weight: 650; color: var(--muted); }
+.lab-nav-group { margin-bottom: 18px; }
+.lab-nav-label { margin: 0 12px 7px; color: var(--dim); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: 1.6px; }
+.lab-nav-link { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; margin-bottom: 3px; padding: 9px 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); text-decoration: none; font-size: 13px; text-align: left; cursor: pointer; }
+.lab-nav-monogram { flex: 0 0 22px; font-family: var(--font-geist-mono), monospace; font-size: 10px; color: var(--dim); text-align: center; }
+.lab-nav-link:hover { background: var(--lab-subtle); color: var(--text); }
+.lab-nav-link.is-active { background: var(--lab-accent-soft); border-color: #a293ff33; color: var(--lab-accent-text); }
+.lab-nav-link.is-active .lab-nav-monogram { color: var(--lab-accent-text); }
+.lab-sidebar-footer { display: grid; gap: 16px; margin-top: auto; padding: 16px 8px 0; border-top: 1px solid var(--border); color: var(--dim); font-size: 11px; line-height: 1.6; }
+.lab-collapse { min-height: 40px; padding: 8px 0; border: 0; background: transparent; color: var(--muted); font-size: 11px; text-align: left; cursor: pointer; }
+.is-collapsed .lab-sidebar .lab-nav-text, .is-collapsed .lab-sidebar .lab-brand-copy { display: none; }
+.is-collapsed .lab-sidebar .lab-brand { justify-content: center; margin-inline: 0; }
+.is-collapsed .lab-sidebar .lab-nav-label { font-size: 0; height: 1px; margin: 14px 8px 8px; background: var(--border); }
+.is-collapsed .lab-sidebar .lab-nav-link { justify-content: center; padding-inline: 8px; }
+.lab-main { min-width: 0; }
+.lab-topbar { min-height: 76px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 36px; border-bottom: 1px solid var(--border); background: var(--background); }
+.lab-topbar-start, .lab-topbar-actions, .lab-breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.lab-breadcrumb { gap: 12px; font-size: 12px; color: var(--dim); }
+.lab-breadcrumb strong { font-weight: 500; color: var(--text); }
+.lab-environment { color: var(--dim); font-size: 11px; }
+.lab-topbar .text-button, .lab-bot-link { min-height: 40px; display: inline-flex; align-items: center; color: var(--lab-accent-text); font-size: 12px; text-decoration: none; }
+.lab-mobile-toggle { display: none !important; }
+.lab-content { width: min(100%, 1440px); padding: 36px clamp(18px, 3.3vw, 52px) 24px; margin: 0 auto; }
+.lab-content > .page-wrap { padding: 0; max-width: none; width: 100%; }
+.lab-page-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--dim); font-size: 11px; }
+.lab-page-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin: 0 0 28px; }
+.lab-eyebrow { margin: 0 0 9px; color: var(--lab-accent-text); font-size: 10px; font-weight: 650; letter-spacing: 2px; }
+.lab-page-heading h1 { margin: 0; font-size: clamp(27px, 3.3vw, 40px); font-weight: 600; line-height: 1.15; letter-spacing: -1.6px; }
+.lab-page-description { margin: 14px 0 0; max-width: 590px; color: var(--muted); font-size: 14px; line-height: 1.75; }
+.lab-header-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.lab-shell .primary-button { border: 1px solid #b2a4ff; border-radius: 8px; background: #aa98ff; color: #17112e; box-shadow: 0 4px 14px #0002; font-weight: 650; text-decoration: none; min-height: 44px; }
+.lab-shell .primary-button:hover:not(:disabled) { background: #bdadff; }
+.lab-shell .secondary-button { background: var(--lab-subtle); border: 1px solid var(--border); border-radius: 8px; color: var(--text); text-decoration: none; min-height: 44px; }
+.lab-shell .text-button { color: var(--lab-accent-text); min-height: 40px; }
+.lab-shell :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.lab-shell :is(.panel, .simple-mines-card) { background: var(--lab-card); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 4px 20px #00000012; }
+.lab-shell .simple-app-notice { max-width: none; border-color: #a293ff55; background: var(--lab-accent-soft); color: var(--text); font-size: 14px; }
+.lab-shell .simple-app-notice button { min-width: 44px; min-height: 44px; }
+.lab-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 24px; }
+.lab-metrics > div { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--lab-card); }
+.lab-metrics dt { color: var(--muted); font-size: 12px; }
+.lab-metrics dd { margin: 8px 0; font-size: clamp(22px, 2.8vw, 30px); font-weight: 550; letter-spacing: -1px; overflow-wrap: anywhere; }
+.lab-metrics p { margin: 0; color: var(--dim); font-size: 11px; }
+.lab-shell .simple-mines-page { max-width: none; }
+.lab-shell .simple-mines-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 24px; }
+.lab-shell .simple-mines-header, .lab-shell #game-analysis, .lab-shell .simple-mines-card > .simple-advanced, .lab-shell .simple-mines-card > div { grid-column: 1 / -1; }
+.lab-shell .simple-mines-header h2 { margin: 0; font-size: 23px; font-weight: 550; letter-spacing: -.7px; }
+.lab-shell .simple-section { min-width: 0; margin: 0; padding: 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--lab-input); }
+.lab-shell #game-analysis { padding: 0 0 22px; background: none; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; }
+.lab-shell .game-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 16px; }
+.lab-shell .game-selector-item { min-height: 46px; border: 1px solid var(--border); border-radius: 8px; background: var(--lab-subtle); color: var(--muted); font-size: 12px; }
+.lab-shell .game-selector-item.is-selected { background: var(--lab-accent-soft); border-color: var(--accent); color: var(--lab-accent-text); }
+.lab-shell .simple-help, .lab-shell .simple-result { font-size: 13px; line-height: 1.7; }
+.lab-shell .simple-help, .lab-shell .football-muted { color: var(--muted); }
+.lab-shell .simple-section h2 { color: var(--text); font-size: 17px; }
+.lab-shell .simple-status { font-size: 12px; }
+.lab-shell .simple-board { margin-top: 16px; gap: 7px; }
+.lab-shell .simple-tile { min-height: 44px; aspect-ratio: 1; border-color: var(--border); background: var(--lab-subtle); font-size: 14px; }
+.lab-shell .simple-tile.is-selected { background: #293a61; border-color: #8e9dd0; }
+.lab-shell .simple-tile.is-safe { background: #1e4a39; border-color: #4c9d72; }
+.lab-shell .simple-tile.is-mine { background: #592935; border-color: #c85d70; }
+.lab-shell .analysis-heading { margin-bottom: 20px; }
+.lab-shell .analysis-output { border-color: #a293ff55; background: var(--lab-accent-soft); border-radius: 12px; }
+.lab-shell :is(.analysis-field, .settings-row, .football-controls, .football-market-controls) :is(input, select, textarea), .lab-shell .football-search input, .lab-market-section > label > select { min-width: 0; width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 8px; padding: 11px 12px; background: var(--lab-input); color: var(--text); }
+.lab-shell input[type="checkbox"] { accent-color: var(--accent); }
+.lab-shell .settings-panel { margin-bottom: 20px; }
+.lab-shell :is(.settings-section-head h2, .page-heading h1, .football-panel h2, .football-panel h3, .panel-heading h2) { color: var(--text); }
+.lab-shell :is(.settings-section-head p, .page-heading p, .football-panel p) { color: var(--muted); }
+.lab-shell .page-heading h1 { font-size: clamp(28px, 3vw, 36px); font-weight: 600; letter-spacing: -1px; }
+.lab-shell .history-table { font-size: 13px; }
+.lab-shell .history-table th { color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+.lab-shell :is(.history-table td, .history-table th, .settings-row, .connection-details > div) { border-color: var(--border); }
+.lab-shell .connection-panel { padding: 26px; }
+.lab-shell .connection-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+.lab-shell .football-ticket-workspace { gap: 22px; }
+.lab-shell .football-ticket-workspace > .lab-page-heading { margin-bottom: 0; }
+.lab-shell .football-panel { padding: clamp(18px, 2.4vw, 28px); }
+.lab-shell .football-panel > h2 { margin: 0 0 20px; font-size: 19px; letter-spacing: -.5px; }
+.lab-form-section { margin: 20px 0; padding: 22px; background: var(--lab-input); border: 1px solid var(--border); border-radius: 12px; }
+.lab-section-title { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+.lab-section-title > span { flex-shrink: 0; color: var(--lab-accent-text); font-family: var(--font-geist-mono), monospace; font-size: 12px; margin-top: 2px; }
+.lab-section-title h3 { margin: 0 !important; font-size: 15px !important; font-weight: 600; }
+.lab-section-title p { margin: 5px 0 0; font-size: 12px; line-height: 1.6; }
+.lab-shell .football-ticket-inputs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.lab-form-section:first-child .football-ticket-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lab-shell .football-controls label { font-size: 12px; color: var(--muted); gap: 8px; }
+.lab-shell .football-periods { margin-bottom: 16px; }
+.lab-shell .football-periods button { flex: 0 1 auto; min-width: 88px; border: 1px solid var(--border); padding: 5px 14px; border-radius: 7px; }
+.lab-shell .football-periods .football-muted { font-size: 11px; }
+.lab-shell .football-league-picker { padding: 18px; margin: 0; background: var(--lab-card); border-color: var(--border); }
+.lab-shell .football-league-picker summary { font-size: 13px; }
+.lab-shell .football-league-picker summary span { background: var(--lab-accent-soft); padding: 4px 8px; border-radius: 5px; color: var(--lab-accent-text); }
+.lab-shell .football-league-options { grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr)); gap: 8px; }
+.lab-shell .football-league-option { min-height: 64px; padding: 12px; background: var(--lab-input); border-color: var(--border); }
+.lab-shell .football-league-option strong { color: var(--text); font-size: 12px; }
+.lab-shell .football-league-option small { color: var(--muted); font-size: 10px; }
+.lab-shell .football-league-option:has(input:checked) { border-color: var(--accent); background: var(--lab-accent-soft); }
+.lab-market-section > label { display: grid; gap: 8px; max-width: 320px; font-size: 12px; color: var(--muted); }
+.lab-shell .football-details { background: var(--lab-card); border-color: var(--border); font-size: 12px; }
+.lab-shell .football-details summary { color: var(--text); min-height: 28px; }
+.lab-shell .football-check { min-height: 44px; }
+.lab-shell .football-generate-button { min-height: 52px; font-size: 15px; }
+.lab-ticket-batch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.lab-ticket-batch > :is(h2, p) { grid-column: 1 / -1; margin: 0; }
+.lab-shell .lab-ticket-card { padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--lab-input); }
+.lab-ticket-card-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.lab-ticket-card > small { color: var(--muted); font-size: 11px; }
+.lab-risk-badge { display: inline-flex; padding: 4px 8px; border: 1px solid #d5b77a55; border-radius: 5px; color: #e4c88f; background: #d5b77a0a; font-size: 10px; }
+.lab-ticket-preview { list-style: none; padding: 0; margin: 20px 0 14px; }
+.lab-ticket-preview li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.lab-ticket-preview li > strong { font-size: 12px; font-weight: 550; }
+.lab-ticket-preview li > strong span, .lab-ticket-preview li > span { color: var(--muted); font-weight: 400; }
+.lab-ticket-preview li > span { grid-column: 1; font-size: 11px; }
+.lab-ticket-preview b { grid-column: 2; grid-row: 1 / 3; align-self: center; color: var(--lab-accent-text); font-family: var(--font-geist-mono), monospace; font-size: 13px; }
+.lab-shell .football-proposed-legs { padding: 0; list-style-position: inside; }
+.lab-shell .football-proposed-legs li { background: var(--lab-input); border-color: var(--border); }
+.lab-shell .football-proposed-legs li > div { display: grid; margin-top: 8px; }
+.lab-shell .football-proposed-legs li > div > strong { font-size: 17px; color: var(--text); }
+.lab-shell .football-proposed-legs small { color: var(--muted); font-size: 11px; }
+.lab-shell .football-ticket-estimate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 20px; background: var(--lab-accent-soft); border: 1px solid #a293ff33; }
+.lab-shell .football-ticket-estimate strong { color: var(--text); }
+.lab-shell .football-ticket-estimate > small { grid-column: 1 / -1; }
+.lab-shell .football-notice { background: var(--lab-accent-soft); border-color: #a293ff44; color: var(--text); font-size: 13px; }
+.lab-shell .football-alert { background: #fb718510; border-color: #fb718555; color: #ffb4c1; }
+.lab-shell .football-saved-ticket { border-color: var(--border); }
+.lab-shell .football-link-code { background: var(--lab-accent-soft); border-color: var(--accent); color: var(--text) !important; padding: 20px; font-size: 20px; user-select: all; }
+.lab-link-steps { display: grid; gap: 12px; padding-left: 24px; color: var(--muted); font-size: 13px; margin: 20px 0; }
+.lab-link-steps li { padding-left: 6px; line-height: 1.7; }
+.lab-shell :is(.football-panel, .simple-section, .lab-ticket-card) { overflow-wrap: anywhere; }
+.lab-shell :is(input, select, textarea) { max-width: 100%; }
+.lab-shell details, .lab-shell section { scroll-margin-top: 24px; }
+.lab-skip { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 12px 20px; border-radius: 8px; background: var(--accent); color: #17112c; transform: translateY(-200%); }
+.lab-skip:focus { transform: none; }
+.lab-mobile-drawer { inset: 0 auto 0 0; margin: 0; width: min(340px, 90vw); height: 100dvh; max-height: 100dvh; max-width: 100vw; padding: 0; border: 0; border-right: 1px solid var(--border); background: var(--lab-card); color: var(--text); }
+.lab-mobile-drawer::backdrop { background: #03050bc9; }
+.lab-drawer-inner { padding: 20px 16px; }
+.lab-drawer-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.lab-shell.theme-light { color-scheme: light; --background: #f3f4f8; --lab-card: #fff; --lab-input: #f7f8fc; --lab-subtle: #eeeef6; --border: #d9dce7; --text: #252537; --muted: #626579; --dim: #707488; --accent: #7660c9; --lab-accent-text: #6651b2; --lab-accent-soft: #7660c90d; }
+.theme-light .lab-risk-badge { color: #77521b; border-color: #b38a3d66; }
+.theme-light.lab-shell .football-alert { color: #9e2844; }
+.theme-light.lab-shell :is(.football-fixture, .football-market, .analysis-confirm, .analysis-details pre) { background: var(--lab-input); color: var(--text); border-color: var(--border); }
+.theme-light.lab-shell :is(.simple-section h2, .simple-mines-header h2, .football-fixture strong, .analysis-heading h2, .analysis-output h3, .analysis-output p, .analysis-field, .analysis-check, .football-details summary, .simple-advanced summary, .simple-result) { color: var(--text); }
+.theme-light.lab-shell :is(.analysis-field small, .analysis-output small, .analysis-details, .football-saved-ticket summary, .simple-round-heading > span) { color: var(--muted); }
+@media (max-width: 1190px) { .lab-topbar { padding-inline: 24px; } .lab-environment { display: none; } .lab-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lab-ticket-batch { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 959px) { .lab-shell, .lab-shell.is-collapsed { grid-template-columns: minmax(0, 1fr); } .lab-sidebar { display: none; } .lab-mobile-toggle { display: inline-flex !important; } .lab-topbar { min-height: 70px; padding: 12px 20px; } .lab-content { padding-top: 26px; } .lab-shell .simple-mines-card { padding: 18px; } }
+@media (max-width: 640px) { .lab-content { padding: 22px 14px; } .lab-topbar { padding: 10px 14px; gap: 6px; } .lab-topbar-actions { gap: 12px; } .lab-breadcrumb > :not(strong) { display: none; } .lab-topbar .text-button { display: none; } .lab-page-heading { gap: 18px; } .lab-page-heading h1 { letter-spacing: -1px; } .lab-page-description { font-size: 13px; } .lab-header-actions { width: 100%; } .lab-header-actions > a { width: 100%; justify-content: center; text-align: center; } .lab-metrics { gap: 8px; } .lab-metrics > div { padding: 14px; } .lab-metrics dd { font-size: 23px; } .lab-shell .simple-mines-card { display: block; padding: 14px; } .lab-shell .simple-section { padding: 16px; margin-top: 16px; } .lab-shell .simple-mines-header { padding: 4px 2px 16px; } .lab-shell .game-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); } .lab-shell .game-selector-item { padding: 8px 4px; font-size: 11px; } .lab-form-section { padding: 16px; } .lab-shell .football-ticket-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .lab-shell .football-controls :is(input, select), .lab-shell .analysis-field :is(input, select, textarea), .lab-market-section > label > select { font-size: 16px; } .lab-section-title { gap: 10px; } .lab-shell .football-league-picker { padding: 12px; } .lab-shell .football-search { max-width: none; } .lab-shell .football-league-options { grid-template-columns: minmax(0, 1fr); } .lab-shell .connection-details { grid-template-columns: minmax(0, 1fr); } .lab-shell .connection-panel { padding: 18px; } .lab-ticket-card { padding: 16px !important; } .lab-shell .football-ticket-estimate { grid-template-columns: minmax(0, 1fr); } .lab-shell .football-fixture-actions > button { flex: 1 1 100%; } .lab-shell .simple-mine-count { display: flex; flex-wrap: wrap; } .lab-shell .simple-tile { min-height: 36px; } }
+@media (max-width: 380px) { .lab-shell .football-ticket-inputs, .lab-form-section:first-child .football-ticket-inputs { grid-template-columns: minmax(0, 1fr); } .lab-bot-link { font-size: 11px; } }
+@media (prefers-reduced-motion: reduce) { .lab-shell *, .lab-shell *::before, .lab-shell *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+
+.lab-metrics dd small { display: block; margin-top: 8px; color: var(--dim); font-size: 11px; font-weight: 400; letter-spacing: normal; }
+.lab-ticket-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 18px 0; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--lab-card); }
+.lab-ticket-totals dt { color: var(--muted); font-size: 10px; }
+.lab-ticket-totals dd { margin: 5px 0 0; color: var(--text); font-size: 17px; font-weight: 550; letter-spacing: -.4px; }
+.lab-ticket-totals > div:nth-child(3) dd { color: var(--lab-accent-text); }
+.lab-shell .analysis-tower-rows > div { flex-wrap: wrap; }
+.lab-shell .penalty-probability-table { max-width: 100%; overflow-x: auto; }
+.lab-shell .simple-round-facts { flex-wrap: wrap; }
+.lab-shell .simple-round-facts span { max-width: 100%; }
+@media (max-width: 640px) { .lab-shell .football-league-actions { gap: 4px 12px; } .lab-shell .football-search input { font-size: 16px; } .lab-shell .settings-row { align-items: stretch; } .lab-shell .storage-actions { flex-wrap: wrap; } }
+
+/* Expandable navigation categories; compact rail keeps its direct shortcuts. */
+.lab-nav-category { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; padding: 9px 12px; margin: 0 0 4px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); text-align: left; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.lab-nav-category:hover { background: var(--lab-subtle); color: var(--text); }
+.lab-nav-category[aria-expanded="true"] { color: var(--text); }
+.lab-category-indicator { font-size: 17px; font-weight: 400; color: var(--dim); }
+.lab-nav-category + div[hidden] { display: none; }
+.lab-sidebar .lab-nav-group { margin-bottom: 8px; }
+.is-collapsed .lab-sidebar .lab-nav-category { display: none; }
+.is-collapsed .lab-sidebar .lab-nav-group + .lab-nav-group { padding-top: 8px; border-top: 1px solid var(--border); }
+.lab-mobile-drawer .lab-nav-group { margin-bottom: 8px; }
+
+/* Document-wide light palette includes overlays rendered outside AppShell. */
+:root:not([data-theme="dark"]) {
+  color-scheme: light;
+  --background: #f3f4f8; --surface: #ffffff; --surface-raised: #f7f8fc;
+  --border: #d9dce7; --text: #252537; --muted: #565d73; --dim: #656c80;
+  --accent: #7157c4; --green: #16714f; --red: #b62d4d;
+  --lab-card: #ffffff; --lab-input: #f7f8fc; --lab-subtle: #eeeef6;
+  --lab-accent-text: #6651b2; --lab-accent-soft: #7660c90d;
+  --light-success-bg: #edf8f1; --light-success-border: #97c5ac;
+  --light-warning-bg: #fff8e8; --light-warning-text: #795715; --light-warning-border: #d4bb80;
+  --light-error-bg: #fff0f3; --light-error-border: #d9a2ae;
+}
+:root:not([data-theme="dark"]) body { background: var(--background); color: var(--text); }
+:root:not([data-theme="dark"]) :is(.lab-shell.theme-light, .theme-light) { --muted: #565d73; --dim: #656c80; --green: #16714f; --red: #b62d4d; }
+:root:not([data-theme="dark"]) :is(.workspace-loading, .simple-app-shell, .simple-app-content) { color: var(--text); background-color: var(--background); }
+:root:not([data-theme="dark"]) :is(.sidebar, .lab-sidebar, .help-dialog, .lab-mobile-drawer, .simple-mines-card, .panel, .football-league-picker) { background: var(--surface); color: var(--text); border-color: var(--border); }
+:root:not([data-theme="dark"]) :is(.simple-section, .board-frame, .formula-box, .recommendation-summary, .football-fixture, .football-market, .analysis-confirm, .analysis-details pre, .fair-card, .integrity-card, .bot-signal-result, .onboarding-features > div, .onboarding-mini-board, .guide-details) { background: var(--surface-raised); color: var(--text); border-color: var(--border); }
+:root:not([data-theme="dark"]) :is(.panel, .simple-mines-card) { box-shadow: 0 4px 20px #25253706; }
+:root:not([data-theme="dark"]) :is(.page-heading h1, .page-heading h1 span, .panel-heading h2, .simple-mines-header h1, .simple-mines-header h2, .simple-section h2, .settings-section-head h2, .bot-heading h1, .bot-page h2, .manual-round-entry h3, .empty-history h3, .analysis-output h3, .analysis-details h3, .help-dialog h2, .help-dialog h3) { color: var(--text); }
+:root:not([data-theme="dark"]) :is(.metric-row strong, .round-stats strong, .next-pick strong, .recommendation-summary strong, .group-stat-row strong, .history-summary-card > strong, .settings-row > div:first-child strong, .simple-round-facts strong, .football-market p strong, .football-fixture strong, .help-dialog strong, .fair-card strong, .profile-row strong, .integrity-card strong) { color: var(--text); }
+:root:not([data-theme="dark"]) :is(.page-heading p, .settings-section-head p, .empty-history p, .history-note, .small-disclaimer, .signal-timestamp, .empty-copy, .source-label, .table-subtext, .board-footnote, .legend-note, .signal-legend, .board-explanation, .bot-data-status, .bot-page .bot-muted, .bot-board-help, .manual-round-entry p, .simple-help, .simple-round-heading > span, .simple-round-facts p, .analysis-field small, .analysis-check small, .analysis-confirm > small, .analysis-history span, .analysis-tower-rows > small, .analysis-output small, .analysis-details, .help-dialog p, .help-dialog dd, .onboarding-progress, .guide-progress, .onboarding-board-example figcaption, .onboarding-tracking-flow li, .guide-capabilities, .settings-footer p) { color: var(--muted); }
+:root:not([data-theme="dark"]) :is(.field-label, .metric-row, .group-stat-row, .round-link-form label, .evaluation-form label, .analysis-field, .analysis-check, .manual-round-confirmation, .simple-mine-count, .bot-mine-controls legend, .bot-signals > label, .help-dialog dt) { color: var(--text); }
+:root:not([data-theme="dark"]) :is(.board-meta, .probability-scale, .formula-label, .game-identifier span, .round-stats span, .history-summary-card > span, .metric-row strong small, .group-stat-row small, .evaluation-form label span, .evaluation-form p, .settings-row > div:first-child span, .profile-row span:not(.profile-dot), .import-area p, .source-status small, .fair-card p, .integrity-card p, .next-pick div > span, .probability-value span) { color: var(--muted); }
+:root:not([data-theme="dark"]) :is(.round-id, .game-identifier code, .formula, .source-status strong, .bot-id, .bot-game-info dd, .simple-result, .simple-round-facts span, .analysis-output p) { color: var(--text); }
+:root:not([data-theme="dark"]) :is(.simple-app-brand, .brand, .breadcrumbs strong) { color: var(--text); }
+:root:not([data-theme="dark"]) :is(.brand-light, .side-label, .breadcrumbs, .topbar, .outlined-tag, .settings-link, .bot-round-heading > span, .bot-game-info dt, .simple-status) { color: var(--muted); }
+:root:not([data-theme="dark"]) :is(.text-button, .arrow-link, .simple-advanced a, .simple-app-links a, .simple-app-settings, .bot-advanced-links a, .help-dialog a, .football-workspace a, .fairness-details summary, .analysis-eyebrow, .eyebrow, .panel-kicker, .bot-heading h1 > span, .bot-tile-list, .recommendation-summary > div:nth-child(2) strong) { color: var(--lab-accent-text); }
+:root:not([data-theme="dark"]) :is(.text-button:hover:not(:disabled), .nav-item:hover, .lab-nav-link:hover, .lab-nav-category:hover) { background: var(--lab-subtle); color: var(--text); }
+:root:not([data-theme="dark"]) :is(.source-status, .mode-pill, .outlined-tag, .icon-button, .arrow-link, .empty-icon, .game-icon, .integrity-icon, .avatar, .next-pick-icon, .count-chip, .bot-status, .guide-status) { border-color: var(--border); background: var(--surface-raised); color: var(--muted); }
+:root:not([data-theme="dark"]) :is(.icon-button:hover, .icon-button:disabled:hover) { border-color: var(--border); color: var(--text); }
+:root:not([data-theme="dark"]) :is(.evaluation-form input, .history-eval-form input, .settings-select, .analysis-field input, .analysis-field select, .analysis-field textarea, .analysis-tower-rows input, .football-controls input, .football-controls select, .football-market-controls input, .football-market-controls select, .football-search input, .simple-mine-count select, .manual-round-entry input, .manual-round-entry textarea, .manual-round-entry select, .help-dialog input:not([type="checkbox"]), .help-dialog select, .help-dialog textarea) { color-scheme: light; background: var(--surface); color: var(--text); border-color: var(--border); }
+:root:not([data-theme="dark"]) :is(input, textarea)::placeholder { color: #73798c; opacity: 1; }
+:root:not([data-theme="dark"]) :is(input, select, textarea) { caret-color: var(--accent); accent-color: var(--accent); }
+:root:not([data-theme="dark"]) :is(.secondary-button, .settings-footer .secondary-button, .help-dialog .secondary-button, .help-dialog-close, .analysis-file-button, .import-button, .new-analysis-button) { border-color: var(--border); background: var(--surface-raised); color: var(--text); }
+:root:not([data-theme="dark"]) :is(.primary-button, .lab-shell .primary-button, .help-dialog .primary-button) { background: #7054c4; border-color: #7054c4; color: #fff; }
+:root:not([data-theme="dark"]) .lab-shell .primary-button:hover:not(:disabled) { background: #6043b2; }
+:root:not([data-theme="dark"]) :is(.segmented-control, .toggle-switch) { background: #e8eaf2; border-color: #c5cad9; }
+:root:not([data-theme="dark"]) .segmented-control button { color: var(--muted); }
+:root:not([data-theme="dark"]) .segmented-control button.selected { background: #e8e1fa; color: #5941a4; }
+:root:not([data-theme="dark"]) .toggle-switch span { background: #72798c; }
+:root:not([data-theme="dark"]) .toggle-switch.on { background: #7054c4; border-color: #7054c4; }
+:root:not([data-theme="dark"]) .toggle-switch.on span { background: #fff; }
+:root:not([data-theme="dark"]) :is(.notice, .simple-app-notice, .bot-notice, .onboarding-callout, .guide-callout, .guide-check-result) { background: #f0edfc; border-color: #c4b8e7; color: #45376f; }
+:root:not([data-theme="dark"]) :is(.notice button, .simple-app-notice button) { color: #5941a4; }
+:root:not([data-theme="dark"]) :is(.simple-advanced summary, .bot-advanced > summary, .bot-advanced-section > summary, .guide-details summary, .guide-status-list > summary) { color: var(--text); }
+:root:not([data-theme="dark"]) :is(.history-table th, .history-table td, .settings-row, .settings-appearance, .settings-footer, .round-stats, .round-stats > div + div, .group-stats, .stats-two > div:nth-child(2n), .game-panel-footer, .profile-row, .topbar, .page-footer, .simple-app-bar, .simple-advanced, .analysis-history li, .bot-main-grid, .bot-signals, .bot-last-result, .bot-advanced-section, .onboarding-footer, .guide-actions, .help-dialog .onboarding-summary > div, .help-dialog .onboarding-status-list > div, .help-dialog .guide-status-list dl > div, .help-dialog .guide-summary > div, .help-dialog .guide-capabilities > div) { border-color: var(--border); }
+:root:not([data-theme="dark"]) .history-table th { color: var(--muted); }
+:root:not([data-theme="dark"]) .history-table td { color: var(--text); }
+:root:not([data-theme="dark"]) .control-divider { background: var(--border); }
+/* Games: retain distinct unknown, selected, suggested, safe and mine states. */
+:root:not([data-theme="dark"]) :is(.tile, .simple-tile, .lab-shell .simple-tile, .tile:disabled:hover, .onboarding-example-tile) { border-color: #cbd0df; background: #eef0f7; color: #454a60; box-shadow: none; }
+:root:not([data-theme="dark"]) .tile:hover:not(:disabled) { background: #e6e1f7; border-color: #9079ca; }
+:root:not([data-theme="dark"]) :is(.tile-selected, .tile-suggested, .tile-selected:hover, .tile-suggested:hover, .lab-shell .simple-tile.is-selected, .onboarding-example-tile.example-highlight) { background: #e5ddfa; border-color: #8a70c8; color: #513490; }
+:root:not([data-theme="dark"]) :is(.tile-manual, .tile-user-marked, .tile-provider-picked) { background: #dceef7; border-color: #6a9fb5; color: #22546d; }
+:root:not([data-theme="dark"]) :is(.tile-confirmed-safe, .lab-shell .simple-tile.is-safe) { background: #dff1e6; border-color: #7daf92; color: #185538; }
+:root:not([data-theme="dark"]) :is(.tile-confirmed-mine, .lab-shell .simple-tile.is-mine) { background: #fbe1e7; border-color: #c98a9c; color: #902640; }
+:root:not([data-theme="dark"]) :is(.bomb-option, .game-selector-item) { border-color: var(--border); background: var(--surface-raised); color: var(--text); }
+:root:not([data-theme="dark"]) :is(.bomb-option.chosen, .game-selector-item.is-selected, .nav-item.active) { background: #ece6fb; border-color: #977dcd; color: #5941a4; }
+:root:not([data-theme="dark"]) :is(.bomb-glyph, .board-meta span:last-child) { color: var(--lab-accent-text); }
+:root:not([data-theme="dark"]) :is(.bomb-option small, .game-selector-item small) { color: var(--muted); }
+:root:not([data-theme="dark"]) .penalty-probability-table { background: var(--border); border-color: var(--border); }
+:root:not([data-theme="dark"]) .penalty-probability-table > div { background: var(--surface); color: var(--text); }
+:root:not([data-theme="dark"]) .penalty-probability-table .penalty-probability-header { background: #ebe8f6; color: #51436e; }
+:root:not([data-theme="dark"]) :is(.analysis-output, .lab-shell .analysis-output, .analysis-confirm) { background: #f3f0fc; border-color: #c4b8e7; }
+:root:not([data-theme="dark"]) .analysis-details pre { background: #eef0f7; color: var(--text); }
+/* Meaningful status colors use pale surfaces and darker readable text. */
+:root:not([data-theme="dark"]) :is(.result-badge, .guide-progress li) { background: #eef0f6; border-color: var(--border); color: var(--muted); }
+:root:not([data-theme="dark"]) :is(.result-won, .evaluation-result, .manual-round-message) { background: var(--light-success-bg); border-color: var(--light-success-border); color: #216044; }
+:root:not([data-theme="dark"]) :is(.evaluation-result strong, .evaluation-result span, .evaluation-result small, .evaluation-result p, .manual-round-message p) { color: #216044; }
+:root:not([data-theme="dark"]) :is(.result-lost, .evaluation-failure, .manual-round-message.is-error, .bot-notice-error, .onboarding-storage-warning, .help-dialog .is-error, .tutorial-storage-notice) { background: var(--light-error-bg); border-color: var(--light-error-border); color: #a12a46; }
+:root:not([data-theme="dark"]) :is(.evaluation-failure strong, .evaluation-failure span, .evaluation-failure small, .evaluation-failure p, .manual-round-message.is-error p, .simple-error, .bot-page .bot-error, .form-error, .evaluation-form .form-error, .history-eval-form .form-error, .settings-row > div:first-child .form-error, .danger-text) { color: #a12a46; }
+:root:not([data-theme="dark"]) :is(.experimental-tag, .pending-tag, .signal-disclaimer, .bot-notice-blocked, .manual-round-message.is-warning) { background: var(--light-warning-bg); border-color: var(--light-warning-border); color: var(--light-warning-text); }
+:root:not([data-theme="dark"]) :is(.signal-disclaimer p, .signal-disclaimer strong, .disclaimer-mark, .manual-round-message.is-warning p) { color: var(--light-warning-text); }
+:root:not([data-theme="dark"]) .disclaimer-mark { border-color: var(--light-warning-border); }
+:root:not([data-theme="dark"]) :is(.result-cashed_out, .guide-progress .is-current) { background: #eee7fb; border-color: #b5a3d9; color: #5941a4; }
+:root:not([data-theme="dark"]) :is(.simple-status.is-live, .bot-status-connected, .guide-progress .is-complete, .calculated-tag, .probability-value, .round-stats .stat-green) { color: #16714f; border-color: #97c5ac; }
+:root:not([data-theme="dark"]) :is(.simple-status.is-demo, .bot-status-connecting) { color: #315c85; }
+:root:not([data-theme="dark"]) :is(.simple-status.is-error, .bot-status-error, .round-stats .stat-red) { color: #a12a46; }
+:root:not([data-theme="dark"]) .probability-track { background: #e0e8e3; }
+:root:not([data-theme="dark"]) .probability-track div { background: #34855e; }
+/* Football: browser, tickets, markets, filters and Telegram linking. */
+:root:not([data-theme="dark"]) :is(.football-controls label, .football-market-controls label, .football-search, .football-check, .football-details, .football-ticket-list li, .football-saved-tickets details, .football-ticket-estimate) { color: var(--muted); border-color: var(--border); }
+:root:not([data-theme="dark"]) :is(.football-details summary, .football-saved-tickets summary, .football-saved-ticket summary, .football-fixture strong, .football-ticket-estimate strong, .football-proposed-legs strong) { color: var(--text); }
+:root:not([data-theme="dark"]) :is(.football-fixture small, .football-fixture strong span, .football-muted, .football-proposed-legs small, .football-link-code small, .football-league-option small) { color: var(--muted); }
+:root:not([data-theme="dark"]) .football-primary { background: #eee8fb; border-color: var(--accent); color: #453569 !important; }
+:root:not([data-theme="dark"]) :is(.football-badge, .football-notice, .lab-shell .football-notice) { background: #f0edfc; border-color: #c4b8e7; color: #594575; }
+:root:not([data-theme="dark"]) :is(.football-alert, .lab-shell .football-alert) { background: var(--light-error-bg); border-color: var(--light-error-border); color: #a12a46; }
+:root:not([data-theme="dark"]) .football-ticket-list button { color: #a12a46; }
+:root:not([data-theme="dark"]) :is(.football-market, .football-fixture, .football-saved-tickets details, .football-ticket-list li, .football-proposed-legs li, .football-details, .football-generated-ticket .football-ticket-estimate) { border-color: var(--border); background: var(--surface-raised); }
+:root:not([data-theme="dark"]) .football-league-option:has(input:checked) { background: #f0ebfc; border-color: #9277c9; }
+:root:not([data-theme="dark"]) .football-link-code { color: #5941a4 !important; background: #f4f0ff; border-color: #a18ace; }
+:root:not([data-theme="dark"]) .lab-risk-badge { background: var(--light-warning-bg); border-color: var(--light-warning-border); color: var(--light-warning-text); }
+/* Help and onboarding are siblings of the shell and need document-scoped tokens. */
+:root:not([data-theme="dark"]) .help-dialog { box-shadow: 0 24px 100px #25253730; }
+:root:not([data-theme="dark"]) .help-dialog::backdrop,
+:root:not([data-theme="dark"]) .lab-mobile-drawer::backdrop { background: #25253766; }
+:root:not([data-theme="dark"]) .onboarding-features > div > span { color: var(--accent); }
+:root:not([data-theme="dark"]) .onboarding-content > progress { background: #e3ddf1; accent-color: var(--accent); }
+:root:not([data-theme="dark"]) .onboarding-content > progress::-webkit-progress-bar { background: #e3ddf1; }
+:root:not([data-theme="dark"]) .onboarding-content > progress::-webkit-progress-value { background: var(--accent); }
+:root:not([data-theme="dark"]) .onboarding-content > progress::-moz-progress-bar { background: var(--accent); }
+:root:not([data-theme="dark"]) :is(.onboarding-example-tile.example-highlight, .guide-progress .is-current) { background: #e5ddfa; border-color: #967dcb; color: #5941a4; }
+:root:not([data-theme="dark"]) :is(button, a, input, select, textarea, summary):focus-visible { outline-color: #7157c4; }
+:root:not([data-theme="dark"]) ::selection { background: #ddd2f5; color: #30204f; }
+@media (max-width: 640px) { .lab-topbar-actions { gap: 8px; } }
+
+:root:not([data-theme="dark"]) :is(.formula-box p, .recommendation-summary span, .game-identifier span, .football-league-picker summary span, .football-proposed-legs details, .analysis-tower-rows label) { color: var(--muted); }
+:root:not([data-theme="dark"]) :is(.suggested-number i, .round-safe-mark i) { color: #795715; }
+:root:not([data-theme="dark"]) :is(.legend-swatch, .legend-swatch.unknown) { background: #eef0f7; border-color: #a4abc0; }
+:root:not([data-theme="dark"]) .legend-swatch.suggested { background: #e5ddfa; border-color: #8a70c8; }
+:root:not([data-theme="dark"]) .legend-swatch.manual { background: #dceef7; border-color: #6a9fb5; }
+:root:not([data-theme="dark"]) :is(.legend-swatch.safe, .legend-swatch.prior) { background: #dff1e6; border-color: #7daf92; }
+:root:not([data-theme="dark"]) .legend-swatch.prior { border-color: #8a70c8; }
+:root:not([data-theme="dark"]) .legend-swatch.mine { background: #fbe1e7; border-color: #c98a9c; }
+:root:not([data-theme="dark"]) .guide-progress .is-complete { background: var(--light-success-bg); border-color: var(--light-success-border); }
+:root:not([data-theme="dark"]) .analysis-tower-rows { border-color: var(--border); }
+:root:not([data-theme="dark"]) .lab-skip { color: #fff; background: #7054c4; }
+:root:not([data-theme="dark"]) .lab-nav-link.is-active { border-color: #c4b8e7; }
+:root:not([data-theme="dark"]) { scrollbar-color: #b3acc6 #f3f4f8; }
+
+/* Appearance belongs with workspace preferences, clear of the page toolbar. */
+.lab-appearance-control { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; padding: 8px 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); text-align: left; cursor: pointer; }
+.lab-appearance-copy { min-width: 0; font-size: 12px; }
+.lab-appearance-track { position: relative; display: block; flex: 0 0 40px; width: 40px; height: 24px; border: 1px solid var(--border); border-radius: 999px; background: var(--lab-subtle); transition: background .18s ease, border-color .18s ease; }
+.lab-appearance-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); box-shadow: 0 1px 3px #0002; transition: transform .18s ease, background .18s ease; }
+.lab-appearance-control[aria-checked="true"] .lab-appearance-track { background: #7962bd; border-color: #9c87dc; }
+.lab-appearance-control[aria-checked="true"] .lab-appearance-thumb { transform: translateX(16px); background: #fff; }
+.lab-appearance-control:hover { color: var(--text); }
+.lab-appearance-control:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.is-collapsed .lab-sidebar .lab-appearance-copy { display: none; }
+.is-collapsed .lab-sidebar .lab-appearance-control { justify-content: center; min-height: 44px; padding: 6px 0; border: 0; background: transparent; }
+.lab-drawer-appearance { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+@media (prefers-reduced-motion: reduce) { .lab-appearance-track, .lab-appearance-thumb { transition: none; } }
+
+/* Supplied logo artwork retains its aspect ratio in both navigation sizes. */
+.lab-sidebar .lab-brand { justify-content: center; margin: 0 0 24px; padding: 0; border-radius: 0; background: transparent; color: var(--text); }
+.lab-logo-full { display: block; width: 100%; max-width: 214px; height: auto; object-fit: contain; }
+.lab-logo-compact { display: none; width: 48px; max-width: 100%; height: auto; object-fit: contain; }
+.is-collapsed .lab-sidebar .lab-logo-full { display: none; }
+.is-collapsed .lab-sidebar .lab-logo-compact { display: block; }
+.is-collapsed .lab-sidebar .lab-brand { min-height: 44px; padding: 5px 0; }
+.lab-mobile-brand { display: block; flex: 0 1 154px; min-width: 0; border-radius: 0; background: transparent; color: var(--text); }
+.lab-mobile-brand svg { display: block; width: 100%; height: auto; object-fit: contain; }

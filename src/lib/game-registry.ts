@@ -32,7 +32,7 @@ const configured = (id: Exclude<GameId, "mines" | "penalty">, name: string, cate
 /**
  * Provider-specific identifiers are deliberately absent until official 1win
  * documentation and permission establish them. Capabilities describe existing
- * Mines Lab functionality, not potential future integrations.
+ * The Winning Edge functionality, not potential future integrations.
  */
 export const GAME_CATALOG: readonly GameDefinition[] = [
   {

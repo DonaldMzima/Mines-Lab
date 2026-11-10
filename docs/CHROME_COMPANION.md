@@ -6,7 +6,7 @@ a 1win game-data integration.
 
 ## What it does
 
-- Lets Mines Lab ask whether an open `*.1win.com` tab exposes the observed
+- Lets The Winning Edge ask whether an open `*.1win.com` tab exposes the observed
   `v_1wingames:mines` or `vgsonewin2_mines` DOM marker.
 - Reports one of: permission required, game not found, game detected, or error.
 - Rechecks while the site shows **Game detected**, so closing or navigating away
@@ -30,7 +30,7 @@ a 1win game-data integration.
 5. Open the extension popup and select **Grant 1win tab access**. Chrome will
    display the origin permission request.
 6. Open a 1win Mines page in your own browser session.
-7. Open Mines Lab at `http://localhost:3000` and select **Connect Game**.
+7. Open The Winning Edge at `http://localhost:3000` and select **Connect Game**.
 
 For the deployed app, the manifest currently allows
 `https://mines-lab-nine.vercel.app`. A different deployment origin requires a
@@ -39,7 +39,7 @@ website wildcard.
 
 ## Status meanings
 
-- **Extension not installed**: Mines Lab did not receive a reply from its own
+- **Extension not installed**: The Winning Edge did not receive a reply from its own
   companion content script.
 - **Permission required**: the extension is installed but 1win tab permission
   has not been explicitly granted in the extension popup.

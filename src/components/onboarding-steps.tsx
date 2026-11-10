@@ -5,12 +5,12 @@ import { getConnectionGuidance } from "@/lib/connection-guidance";
 import { SUPPORTED_BOMB_COUNTS, TOTAL_TILES } from "@/lib/mines";
 
 export const ONBOARDING_TITLES = [
-  "Welcome to Mines Lab",
+  "Welcome to The Winning Edge",
   "Configure your game",
   "Connect your game data",
   "Verify your connection",
   "Understand automatic tracking",
-  "Start using Mines Lab",
+  "Start using The Winning Edge",
 ] as const;
 
 export function OnboardingStep({ step, onOpenGuide }: { step: number; onOpenGuide: () => void }) {
@@ -21,7 +21,7 @@ export function OnboardingStep({ step, onOpenGuide }: { step: number; onOpenGuid
   const historySaving = storageStatus.history.writable && !storageStatus.history.error;
 
   if (step === 0) return <>
-    <p className="onboarding-lead">Mines Lab helps you analyze Mines game results, understand probabilities, and track the performance of tile recommendations.</p>
+    <p className="onboarding-lead">The Winning Edge helps you analyze Mines game results, understand probabilities, and track the performance of tile recommendations.</p>
     <div className="onboarding-features"><div><span aria-hidden="true">▦</span><strong>Understand the odds</strong><p>Explore how the number of mines and picks affects probability.</p></div><div><span aria-hidden="true">◷</span><strong>Learn from results</strong><p>Keep completed rounds and compare recommendations with what happened.</p></div></div>
     <p className="onboarding-callout">You can start with completed-round imports. {connection.available ? "A configured read-only source is also available; this tutorial explains how to check its data access." : "A live connection is optional and currently unavailable without an authorized source."}</p>
   </>;
@@ -57,7 +57,7 @@ export function OnboardingStep({ step, onOpenGuide }: { step: number; onOpenGuid
   </>;
 
   if (step === 4) return <>
-    <p>With a supported live source, Mines Lab follows the events the provider makes available.</p>
+    <p>With a supported live source, The Winning Edge follows the events the provider makes available.</p>
     <ol className="onboarding-tracking-flow"><li><strong>Round detected</strong><span>A genuine round ID appears when a start event is available.</span></li><li><strong>Updates received</strong><span>Supported selections and progress are recorded.</span></li><li><strong>Result confirmed</strong><span>The completed result is validated and added to local history.</span></li><li><strong>Signal evaluated</strong><span>A suggestion linked to that exact round is compared with the revealed mines.</span></li></ol>
     <p className="onboarding-callout">Some sources provide completed rounds only. In that case, results can be saved automatically, but an active round and its moves cannot be tracked.</p>
     <p>Without a live source, import completed results in History. Matching round IDs update existing signal evaluations automatically. If a relationship is unknown, confirm it yourself; the app does not guess.</p>

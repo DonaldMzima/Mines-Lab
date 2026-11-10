@@ -53,7 +53,7 @@ export function useBrowserGamePresence() {
       const response = await new Promise<CompanionResponse>((resolve, reject) => {
         const timeout = window.setTimeout(() => {
           window.removeEventListener("message", listener);
-          reject(new Error("The Mines Lab companion did not respond."));
+          reject(new Error("The The Winning Edge companion did not respond."));
         }, REQUEST_TIMEOUT_MS);
         const listener = (event: MessageEvent<unknown>) => {
           if (event.source !== window || event.origin !== window.location.origin || !isCompanionResponse(event.data) || event.data.requestId !== id) return;

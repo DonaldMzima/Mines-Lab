@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { WorkspaceHeader, WorkspaceMetrics } from "@/components/workspace-ui";
 import { useMemo } from "react";
 import { useAppState } from "@/components/app-provider";
 import { InlineSignals } from "@/components/inline-signals";
@@ -14,7 +15,7 @@ import { SUPPORTED_BOMB_COUNTS, tileIndexToNumber, TOTAL_TILES } from "@/lib/min
 export default function Home() {
   const {
     preferences, updatePreferences, connection, connectGame, demoConnection, connectDemo, disconnectDemo,
-    startDemo, pauseDemo, resetDemo, tracking, history,
+    startDemo, pauseDemo, resetDemo, tracking, history, signals,
   } = useAppState();
   const browserGame = useBrowserGamePresence();
   const activeGame = getGameDefinition(preferences.activeGameId);
@@ -44,13 +45,15 @@ export default function Home() {
 
   return (
     <div className="simple-mines-page">
-      <main className="simple-mines-card" aria-labelledby="mines-lab-title">
+      <WorkspaceHeader eyebrow="The Winning Edge" title="Explore. Analyze. Understand." description="Your game modules, signals and football planning, in one workspace." actions={<Link className="primary-button" href="/football">Open Football Lab</Link>} />
+      <WorkspaceMetrics items={[{ label: "Game modules", value: GAME_CATALOG.length, detail: "Available in this workspace" }, { label: "Round history", value: history.length, detail: "Stored in this browser" }, { label: "Saved signals", value: signals.length, detail: "Local records, not verified wins" }, { label: "Mines connection", value: status === "Offline" ? "Offline" : status, detail: "Demo and live data stay distinct" }]} />
+      <section className="simple-mines-card" aria-labelledby="mines-lab-title">
         <header className="simple-mines-header">
-          <h1 id="mines-lab-title">Mines Lab</h1>
+          <div><p className="lab-eyebrow">GAME ANALYSIS</p><h2 id="mines-lab-title">{activeGame.name} workspace</h2></div>
           <span className={`simple-status ${activeGame.id === "mines" && status === "Error" ? "is-error" : activeGame.id === "mines" && demoActive ? "is-demo" : activeGame.id === "mines" && liveStatus === "connected" ? "is-live" : ""}`} role="status">{activeGame.id === "mines" ? status === "Offline" ? "Not connected" : status : "Not connected"}</span>
         </header>
 
-        <section className="simple-section" aria-labelledby="game-selector-heading">
+        <section id="game-analysis" className="simple-section" aria-labelledby="game-selector-heading">
           <h2 id="game-selector-heading">Games</h2>
           <div className="game-selector" role="list" aria-label="Game selector">
             {GAME_CATALOG.map((game) => <button key={game.id} type="button" role="listitem" className={`game-selector-item ${preferences.activeGameId === game.id ? "is-selected" : ""}`} aria-pressed={preferences.activeGameId === game.id} onClick={() => updatePreferences({ ...preferences, activeGameId: game.id })}>{game.name}</button>)}
@@ -69,8 +72,8 @@ export default function Home() {
           </div>
           {browserGame.status === "idle" && <p className="simple-help">Connect Game checks for the optional Chrome companion. It does not connect a live round-data feed.</p>}
           {browserGame.status === "checking" && <p className="simple-help">Checking the Chrome companion…</p>}
-          {browserGame.status === "extension-unavailable" && <p className="simple-error" role="alert">Chrome companion not installed or this Mines Lab origin is not allowed.</p>}
-          {browserGame.status === "permission-required" && <p className="simple-help">Permission required. Open the Mines Lab Companion extension and grant access to 1win tabs.</p>}
+          {browserGame.status === "extension-unavailable" && <p className="simple-error" role="alert">Chrome companion not installed or this The Winning Edge origin is not allowed.</p>}
+          {browserGame.status === "permission-required" && <p className="simple-help">Permission required. Open the The Winning Edge Companion extension and grant access to 1win tabs.</p>}
           {browserGame.status === "game-not-found" && <p className="simple-help">No supported 1win Mines page was detected.</p>}
           {browserGame.status === "game-detected" && <p className="simple-help">Game detected. No authentic round-data feed is connected.</p>}
           {browserGame.status === "disconnected" && <p className="simple-help">Game detection disconnected.</p>}
@@ -110,7 +113,7 @@ export default function Home() {
 
         <details className="simple-advanced"><summary>Details</summary><div><p><Link href="/signals">Signal history</Link><Link href="/history">Round history</Link><Link href="/settings">Settings</Link></p><p>{activeGame.description}</p></div></details>
         </> : activeGame.id === "penalty" ? <PenaltyWorkspace /> : <GameWorkspace key={activeGame.id} gameId={activeGame.id} />}
-      </main>
+      </section>
     </div>
   );
 }

@@ -12,7 +12,7 @@ The official API/feed remains the preferred route. The provider search findings 
 
 Chrome's `activeTab` permission grants temporary host access after the user invokes an extension, such as by clicking its toolbar action. Access is tied to the active tab and its main-frame origin, and is revoked when that tab closes or navigates to another origin. `scripting` is additionally required to inject an extension content script. [Chrome activeTab documentation](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab).
 
-A click on Connect Game in a regular Mines Lab web page does not, by itself, grant `activeTab` access to a different game tab. A future companion using this permission would need an explicit extension action on the chosen game tab during setup, and renewed action when access is revoked. That is a browser access boundary, not a provider data-use permission grant.
+A click on Connect Game in a regular The Winning Edge web page does not, by itself, grant `activeTab` access to a different game tab. A future companion using this permission would need an explicit extension action on the chosen game tab during setup, and renewed action when access is revoked. That is a browser access boundary, not a provider data-use permission grant.
 
 No applicable provider authorization or complete restriction on this exact read-only companion was verified from the official material reviewed. The official casino page did not return readable text to direct retrieval; the accessible partner site describes affiliate marketing. Rules for unrelated products, third-party blogs, and Chrome API availability cannot establish permission to collect Mines data. No private endpoint, authenticated page, browser credential, or game session was accessed during research.
 
@@ -28,11 +28,11 @@ The `webRequest` API can expose a permitted WebSocket upgrade handshake; it does
 
 ## Minimum evidence needed before implementation
 
-1. Provider confirmation that this read-only collection and transfer to Mines Lab is permitted, including demo mode, commercial use if relevant, and any retention/rate limits.
+1. Provider confirmation that this read-only collection and transfer to The Winning Edge is permitted, including demo mode, commercial use if relevant, and any retention/rate limits.
 2. The exact supported casino/game origin and frame, plus an approved DOM export or documented page event surface. No rotating mirror domains or iframe hosts are guessed.
 3. A sanitized example containing a stable round ID, known completion evidence, timestamp, mine count, and unique zero-based revealed mine positions. Start/update availability must be established separately.
 4. Documented state semantics and enough fixtures to distinguish active, completed, repeated, malformed, and changed-page cases. `ms_id` is not assumed to be a round ID.
-5. The deployed Mines Lab origin and an approved pairing/data-transfer design. This origin is not yet used to invent an API endpoint or extension manifest.
+5. The deployed The Winning Edge origin and an approved pairing/data-transfer design. This origin is not yet used to invent an API endpoint or extension manifest.
 
 ## Narrow future architecture, conditional on permission
 
@@ -40,7 +40,7 @@ This is a design boundary for a future implementation, not a completed integrati
 
 - Use Manifest V3 and a user-invoked extension action with `activeTab` and `scripting` if the approved data is on that origin. Avoid `<all_urls>`, cookie access, broad browsing access, `debugger`, and network interception permissions. If a separate approved frame genuinely requires additional host access, request only that specific optional origin and explain it before collection.
 - Check the exact origin, selected tab/frame, and supported game before observing. Read only the provider-approved round fields; do not read login forms, account balances, cookies, tokens, local session stores, or unrelated page data. Stop if the source structure changes rather than infer outcomes from colors or timing.
-- Pair the chosen game tab with Mines Lab through a narrowly allowed app origin. `externally_connectable.matches` controls which web pages can initiate extension messaging; no broad wildcard is needed. [Chrome externally_connectable](https://developer.chrome.com/docs/extensions/reference/manifest/externally-connectable).
+- Pair the chosen game tab with The Winning Edge through a narrowly allowed app origin. `externally_connectable.matches` controls which web pages can initiate extension messaging; no broad wildcard is needed. [Chrome externally_connectable](https://developer.chrome.com/docs/extensions/reference/manifest/externally-connectable).
 - Have the app initiate the permitted messaging connection to the known extension ID. Validate sender origin, selected tab/frame, message version, and a fresh in-memory pairing nonce; allow only status/read-only data operations. Validate payloads on both sides, bound sizes/rates, and reject stale/replayed sequence IDs. Page/content-script messages remain untrusted; pairing is not proof that a DOM result is authentic. [Chrome messaging and security guidance](https://developer.chrome.com/docs/extensions/develop/concepts/messaging).
 - Feed only normalized events into the existing `GameDataAdapter`/round tracker. If the permitted surface provides completed results only, emit completions only. Never synthesize starts or hidden-safe positions. Stop observers and disconnect ports on user disconnect, tab close, origin change, or permission loss; require a fresh user grant when necessary.
 

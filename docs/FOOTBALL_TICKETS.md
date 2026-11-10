@@ -6,7 +6,7 @@ ZAR stake, target payout, risk preference, Automatic/Custom markets, Generate Ti
 numbered proposals, Save, Send to Telegram, and history. Defaults: 4 distinct matches,
 3 tickets, R20 stake per ticket, R158 target total return, Balanced preference.
 The former fixture browser, manual planner and evaluation remain lazily mounted
-under Advanced. Other Mines Lab pages and game engines are untouched.
+under Advanced. Other The Winning Edge pages and game engines are untouched.
 
 ## Configuration and actual availability
 

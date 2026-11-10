@@ -39,7 +39,7 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   activeGameId: "mines",
   mineCount: 3,
   suggestedTileCount: 3,
-  theme: "dark",
+  theme: "light",
   compactBoard: false,
   connection: { autoConnect: false, staleAfterSeconds: 120 },
 };

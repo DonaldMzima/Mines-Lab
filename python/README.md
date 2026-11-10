@@ -3,7 +3,7 @@
 > The historical service setup below is not used by current application callers.
 > See [migration status](../docs/NATIVE_ANALYSIS.md).
 
-# Mines Lab Python analysis
+# The Winning Edge Python analysis
 
 Python 3.10+. The fifteen game engines form an offline reference/evaluation CLI.
 Football optionally provides an authenticated FastAPI service for additional

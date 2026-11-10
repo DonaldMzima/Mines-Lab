@@ -6,12 +6,12 @@ Implemented 7 November 2026. No terminal commands, builds, installations, Git op
 
 The existing app now has a six-step welcome tutorial:
 
-1. **Welcome to Mines Lab:** a short explanation and Get Started.
+1. **Welcome to The Winning Edge:** a short explanation and Get Started.
 2. **Configure your game:** working mine-count and suggested-tile controls, a numbered 5×5 board illustration, and an explanation of experimental suggestions. Settings update the existing app preferences; the illustration is not a generated signal or a result.
 3. **Connect your game data:** actual source availability, imports as an alternative, a skippable live-setup step, and access to the connection guide.
 4. **Verify your connection:** plain-language status meanings, a supported real Test Connection action, useful results/errors, and a disabled test with an explanation when no source/check exists.
 5. **Understand automatic tracking:** event availability, completed-only limitations, exact-ID signal association, history updates, and retrospective confirmation.
-6. **Start using Mines Lab:** actual game settings, connection/source/tracking/storage summary, Open Dashboard and Open Signals. Tutorial completion never claims to activate or verify live access.
+6. **Start using The Winning Edge:** actual game settings, connection/source/tracking/storage summary, Open Dashboard and Open Signals. Tutorial completion never claims to activate or verify live access.
 
 Back, Next, Close, Escape, and Skip are connected. The modal uses native `dialog.showModal()` for focus containment and background inertness, named headings, focus movement between steps, focus restoration, body-scroll locking, large text, responsive layouts, and wrap-safe content. One dialog switches between tutorial and guide, avoiding nested modal traps. The existing dashboard was not redesigned.
 

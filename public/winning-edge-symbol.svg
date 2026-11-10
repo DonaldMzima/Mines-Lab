@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="225" viewBox="90 75 390 225" role="img" aria-labelledby="title desc">
+  <title id="title">Winning Edge WE symbol</title>
+  <desc id="desc">Original white WE monogram and purple swooshes, without the wordmark.</desc>
+  <defs>
+    <linearGradient id="purple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B85CFF"/>
+      <stop offset="1" stop-color="#6932F5"/>
+    </linearGradient>
+  </defs>
+  <!-- Transparent background; suitable for a dark app sidebar or header. -->
+  <path d="M160 149 C285 74 427 82 460 118 C476 135 467 157 456 171 C465 126 415 112 352 114 C272 117 202 136 160 149Z" fill="url(#purple)"/>
+  <path d="M107 249 C145 284 215 273 254 256 C208 292 142 307 112 283 C97 272 97 260 107 249Z" fill="url(#purple)"/>
+  <text x="280" y="246" fill="#FFFFFF" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="150" font-style="italic" letter-spacing="-14" text-anchor="middle">WE</text>
+  <path d="M330 219 H401 L390 237 H319Z" fill="url(#purple)"/>
+</svg>

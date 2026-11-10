@@ -1,4 +1,4 @@
-# Mines Lab Telegram bot
+# The Winning Edge Telegram bot
 
 The existing @MinesLabSignalsBot webhook remains the single bot. All 15 games are selectable. This implementation has **not** been runtime verified; no test messages, webhook registration, Redis writes, or deployment were performed during development.
 

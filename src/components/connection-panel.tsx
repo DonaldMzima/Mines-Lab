@@ -16,7 +16,7 @@ export function ConnectionPanel() {
   const busy = ["connecting", "connected", "reconnecting"].includes(connection.state);
   const gameStatus = getGameConnectionStatus(connection);
   return (
-    <section className="panel connection-panel history-section" aria-labelledby="provider-connection-heading">
+    <section id="game-connection" className="panel connection-panel history-section" aria-labelledby="provider-connection-heading">
       <div className="panel-heading"><div><div className="panel-kicker">READ-ONLY GAME DATA</div><h2 id="provider-connection-heading">Provider connection</h2></div><span className={`outlined-tag connection-${gameStatus}`}>{connection.available ? gameStatus : "unavailable · offline"}</span></div>
       <dl className="connection-details">
         <div><dt>Provider</dt><dd>1win Games · 1win Mines</dd></div>

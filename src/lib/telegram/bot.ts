@@ -193,7 +193,7 @@ async function showFootballTickets(chatId: number): Promise<void> {
   try {
     const browserId = await getLinkedBrowserId(chatId);
     if (!browserId) {
-      await sendTelegramMessage(chatId, "No website is linked. Open Football in Mines Lab and create a one-time Telegram link code.");
+      await sendTelegramMessage(chatId, "No website is linked. Open Football in The Winning Edge and create a one-time Telegram link code.");
       return;
     }
 
@@ -340,7 +340,7 @@ async function settings(chatId: number): Promise<void> {
 }
 async function status(chatId: number): Promise<void> {
   const state = await getTelegramUser(chatId);
-  await sendTelegramMessage(chatId, [gameName(state.selectedGame), "Connection: Not connected", "Source: manual input only", "Bot storage: " + telegramStorageMode(), "Browser history: separate", "Notifications: " + (state.notificationsEnabled ? "enabled" : "disabled"), "Validated future accuracy: unavailable"].join("\n"), controls(state.selectedGame));
+  await sendTelegramMessage(chatId, ["The Winning Edge", gameName(state.selectedGame), "Connection: Not connected", "Source: manual input only", "Bot storage: " + telegramStorageMode(), "Browser history: separate", "Notifications: " + (state.notificationsEnabled ? "enabled" : "disabled"), "Validated future accuracy: unavailable"].join("\n"), controls(state.selectedGame));
 }
 async function details(chatId: number): Promise<void> {
   const state = await getTelegramUser(chatId);
@@ -450,9 +450,9 @@ async function handleCommand(chatId: number, text: string): Promise<void> {
   const command = head.toLowerCase().split("@")[0];
   const body = text.trim().slice(head.length).trim();
   if (await handleFootballTicketCommand(chatId, command, body)) return;
-  if (command === "/start" || command === "/games") { await sendTelegramMessage(chatId, "MINES LAB\n\nChoose Game", menu()); return; }
+  if (command === "/start" || command === "/games") { await sendTelegramMessage(chatId, "The Winning Edge\n\nChoose Game", menu()); return; }
   if (command === "/help") {
-    await sendTelegramMessage(chatId, "MINES LAB\n/games — choose game\n/signal — selected game analysis\n/settings — settings and input format\n/config {JSON} — update selected game\n/details — calculations and limitations\n/result or /round — latest completed result\n/history — results and signals separately\n/status — connection and storage\n/penalty — select Penalty\n/football — generate football tickets\n/fixtures — advanced fixture browser\n/ticketdates START END — custom dates\n/ticketbudget ZAR — budget\n/ticketstrategy conservative|balanced|high-risk\n/ticketmarkets auto|h2h,totals — supported markets\n/generateticket — proposed ticket\n/todaystickets and /weekendtickets — generate for these dates\n/search TEAM — search the selected football competition\n/footballstats ID — fixture statistics when available\n/footballhistory — prediction evaluation\n/prediction ID — provider prediction for a fixture\n/link CODE — link website tickets once\n/tickets — view linked website tickets\n/notifications [on|off] — notification preference\n\n/record {\"gameId\":\"dice\",\"roundId\":\"your-round\",\"completedAt\":\"ISO timestamp\",\"source\":\"manual\",\"data\":{\"value\":42}}\n\nUse your actual completed records. Link a roundId in settings before Get Signal for prospective matching. Manual results do not establish verified accuracy. Mines suggestions are experimental random tiles. Football probabilities and ticket returns are not guaranteed.", menu()); return;
+    await sendTelegramMessage(chatId, "The Winning Edge\n/games — choose game\n/signal — selected game analysis\n/settings — settings and input format\n/config {JSON} — update selected game\n/details — calculations and limitations\n/result or /round — latest completed result\n/history — results and signals separately\n/status — connection and storage\n/penalty — select Penalty\n/football — generate football tickets\n/fixtures — advanced fixture browser\n/ticketdates START END — custom dates\n/ticketbudget ZAR — budget\n/ticketstrategy conservative|balanced|high-risk\n/ticketmarkets auto|h2h,totals — supported markets\n/generateticket — proposed ticket\n/todaystickets and /weekendtickets — generate for these dates\n/search TEAM — search the selected football competition\n/footballstats ID — fixture statistics when available\n/footballhistory — prediction evaluation\n/prediction ID — provider prediction for a fixture\n/link CODE — link website tickets once\n/tickets — view linked website tickets\n/notifications [on|off] — notification preference\n\n/record {\"gameId\":\"dice\",\"roundId\":\"your-round\",\"completedAt\":\"ISO timestamp\",\"source\":\"manual\",\"data\":{\"value\":42}}\n\nUse your actual completed records. Link a roundId in settings before Get Signal for prospective matching. Manual results do not establish verified accuracy. Mines suggestions are experimental random tiles. Football probabilities and ticket returns are not guaranteed.", menu()); return;
   }
   if (command === "/football") { await footballTicketMenu(chatId); return; }
   if (command === "/fixtures") { await footballMenu(chatId); return; }
@@ -495,7 +495,7 @@ async function handleCallback(callback: TelegramCallbackQuery): Promise<void> {
   await answerTelegramCallback(callback.id);
   if (await handleFootballTicketCallback(chatId, data)) return;
   if (data === "menu:football") { await footballTicketMenu(chatId); return; }
-  if (data.startsWith("menu:")) { const category = data.slice(5); if (category === "main" || category === "crash" || category === "more") { await sendTelegramMessage(chatId, "MINES LAB\n\nChoose Game", menu(category)); return; } }
+  if (data.startsWith("menu:")) { const category = data.slice(5); if (category === "main" || category === "crash" || category === "more") { await sendTelegramMessage(chatId, "The Winning Edge\n\nChoose Game", menu(category)); return; } }
   const footballPeriod = /^football:period:(today|tomorrow|weekend|next7)$/.exec(data);
   if (footballPeriod) { await footballCompetitions(chatId, footballPeriod[1] as FootballPeriod); return; }
   const competitionPage = /^football:competitions:(today|tomorrow|weekend|next7):(\d{1,2})$/.exec(data);
@@ -560,7 +560,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
     const senderId = update.message?.from?.id ?? update.callback_query?.from.id;
     const chatId = message?.chat.id;
     if (message && (message.chat.type !== "private" || (senderId !== undefined && senderId !== chatId))) {
-      if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "Open Mines Lab privately to keep your settings independent.");
+      if (update.callback_query) await answerTelegramCallback(update.callback_query.id, "Open The Winning Edge privately to keep your settings independent.");
       else await sendTelegramMessage(message.chat.id, "Open @MinesLabSignalsBot privately to keep your settings and history independent.");
     } else if (chatId !== undefined) {
       await withTelegramUserLock(chatId, async () => {

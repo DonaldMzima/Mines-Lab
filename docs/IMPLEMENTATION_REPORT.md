@@ -1,4 +1,4 @@
-# Mines Lab V4 implementation report
+# The Winning Edge V4 implementation report
 
 Date: 9 November 2026. This report describes source changes in the existing repository, not a production release.
 
